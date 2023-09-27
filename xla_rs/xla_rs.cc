@@ -1030,7 +1030,7 @@ char *xla_computation_name(xla_computation c) {
 void xla_computation_free(xla_computation c) { delete c; }
 
 char *status_error_message(status s) {
-  return strdup(tsl::NullTerminatedMessage(*s));
+  return strdup(std::string(s->message()).c_str());
 }
 
 status hlo_module_proto_parse_and_return_unverified_module(
