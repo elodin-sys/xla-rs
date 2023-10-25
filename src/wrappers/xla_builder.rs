@@ -19,7 +19,7 @@ impl XlaBuilder {
         XlaBuilder(Rc::new(XlaBuilderInternal(xla_builder)))
     }
 
-    fn ptr(&self) -> c_lib::xla_builder {
+    pub fn ptr(&self) -> c_lib::xla_builder {
         self.0 .0
     }
 

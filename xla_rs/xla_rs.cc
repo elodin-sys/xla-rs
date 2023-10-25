@@ -38,6 +38,12 @@ status pjrt_cpu_client_create(pjrt_client *output) {
   return nullptr;
 }
 
+status pjrt_metal_client_create(pjrt_client *output) {
+  ASSIGN_OR_RETURN_STATUS(client, xla::GetCApiClient("metal", {}));
+  *output = new std::shared_ptr(std::move(client));
+  return nullptr;
+}
+
 status pjrt_gpu_client_create(pjrt_client *output, double memory_fraction,
                               bool preallocate) {
   xla::GpuAllocatorConfig allocator = {.memory_fraction = memory_fraction,
@@ -52,6 +58,11 @@ status pjrt_tpu_client_create(pjrt_client *output,
                               int max_inflight_computations) {
   ASSIGN_OR_RETURN_STATUS(client, xla::GetTpuClient(max_inflight_computations));
   *output = new std::shared_ptr(std::move(client));
+  return nullptr;
+}
+
+status pjrt_load_plugin(const char *device_type, const char *lib_path) {
+  MAYBE_RETURN_STATUS(pjrt::LoadPjrtPlugin(device_type, lib_path));
   return nullptr;
 }
 
@@ -865,11 +876,33 @@ status build(const xla_builder b, const xla_op o, xla_computation *output) {
   return nullptr;
 }
 
+std::string PrintModule(mlir::ModuleOp module) {
+  std::string s;
+  llvm::raw_string_ostream os(s);
+  mlir::OpPrintingFlags flags;
+  flags.enableDebugInfo();
+  module->print(os, flags);
+  return s;
+}
+
 status compile(const pjrt_client client, const xla_computation computation,
                pjrt_loaded_executable *output) {
   CompileOptions options;
-  ASSIGN_OR_RETURN_STATUS(executable,
-                          (*client)->Compile(*computation, options));
+  mlir::MLIRContext context;
+  mlir::OwningOpRef<mlir::ModuleOp> module =
+      mlir::ModuleOp::create(mlir::UnknownLoc::get(&context));
+  context.loadDialect<mlir::func::FuncDialect>();
+  context.loadDialect<mlir::mhlo::MhloDialect>();
+  MAYBE_RETURN_STATUS(ConvertHloToMlirHlo(*module, &computation->proto(),
+                                          /*import_all_computations=*/true));
+  mlir::PassManager pm(&context);
+  pm.addPass(mlir::mhlo::createHloLegalizeToStablehloPass());
+  if (pm.run(*module).failed()) {
+    return new Status(
+        InvalidArgument("Failed to convert xla computation to mlir"));
+  }
+
+  ASSIGN_OR_RETURN_STATUS(executable, (*client)->Compile(*module, options));
   *output = executable.release();
   return nullptr;
 }

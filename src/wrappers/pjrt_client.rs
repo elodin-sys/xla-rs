@@ -1,8 +1,10 @@
 //! A device (CPUs, GPUs, TPUs) where computations can be run.
 use super::{ArrayElement, Literal, PjRtBuffer, PjRtDevice, PjRtLoadedExecutable, XlaComputation};
 use crate::{c_lib, Error, Result};
+use std::ffi::CString;
 use std::marker::PhantomData;
 use std::rc::Rc;
+use std::sync::OnceLock;
 
 pub(super) struct PjRtClientInternal(pub(self) c_lib::pjrt_client);
 
@@ -23,10 +25,42 @@ impl PjRtClient {
     /// A GPU client, the memory requirements are limited by the specified `memory_fraction` and
     /// this memory can either be allocated dynamically or pre-allocated depending on
     /// `preallocate`.
+    #[cfg(not(target_os = "macos"))]
     pub fn gpu(memory_fraction: f64, preallocate: bool) -> Result<Self> {
         let mut ptr: c_lib::pjrt_client = std::ptr::null_mut();
         let status =
             unsafe { c_lib::pjrt_gpu_client_create(&mut ptr, memory_fraction, preallocate) };
+        super::handle_status(status)?;
+        Ok(Self(Rc::new(PjRtClientInternal(ptr))))
+    }
+
+    /// A GPU client, the memory requirements are limited by the specified `memory_fraction` and
+    /// this memory can either be allocated dynamically or pre-allocated depending on
+    /// `preallocate`.
+    #[cfg(target_os = "macos")]
+    pub fn gpu(_memory_fraction: f64, _preallocate: bool) -> Result<Self> {
+        use std::{fs::File, io::Write, os::unix::prelude::OsStrExt};
+
+        static METAL_PJRT: &[u8] = include_bytes!(concat!(
+            env!("OUT_DIR"),
+            "/jax_metal/jax_plugins/metal_plugin/pjrt_plugin_metal_14.dylib"
+        ));
+        static METAL_PLUGIN_PATH: OnceLock<CString> = OnceLock::new();
+
+        let mut ptr: c_lib::pjrt_client = std::ptr::null_mut();
+        let path = METAL_PLUGIN_PATH.get_or_init(|| {
+            let dirs = xdg::BaseDirectories::with_prefix("paracosm").unwrap();
+            let plugin_path = dirs.place_cache_file("pjrt_plugin_metal_14.dylib").unwrap();
+            if !plugin_path.exists() {
+                let mut plugin_file = File::create(&plugin_path).unwrap();
+                plugin_file.write_all(METAL_PJRT).unwrap();
+            }
+            CString::new(plugin_path.as_os_str().as_bytes()).unwrap()
+        });
+        let metal = CString::new("metal").unwrap();
+        let status = unsafe { c_lib::pjrt_load_plugin(metal.as_ptr(), path.as_ptr()) };
+        super::handle_status(status)?;
+        let status = unsafe { c_lib::pjrt_metal_client_create(&mut ptr) };
         super::handle_status(status)?;
         Ok(Self(Rc::new(PjRtClientInternal(ptr))))
     }

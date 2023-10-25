@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 #ifdef __cplusplus
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wuninitialized"
@@ -15,12 +16,32 @@
 #include "xla/pjrt/gpu/gpu_helpers.h"
 #include "xla/pjrt/gpu/se_gpu_pjrt_client.h"
 #include "xla/pjrt/pjrt_client.h"
+#include "xla/pjrt/pjrt_api.h"
+#include "xla/pjrt/pjrt_c_api_client.h"
 #include "xla/pjrt/pjrt_stream_executor_client.h"
 #include "xla/pjrt/tfrt_cpu_pjrt_client.h"
 #include "xla/pjrt/tpu_client.h"
+#include "xla/pjrt/mlir_to_hlo.h"
+#include "xla/pjrt/gpu/gpu_helpers.h"
+#include "xla/service/llvm_ir/llvm_util.h"
 #include "xla/service/hlo_parser.h"
 #include "xla/shape_util.h"
+#include "xla/translate/hlo_to_mhlo/hlo_to_mlir_hlo.h"
 #include "xla/statusor.h"
+#include "mlir/Parser/Parser.h"  // from @llvm-project
+#include "mlir/Pass/PassManager.h"  // from @llvm-project
+#include "mlir/IR/Attributes.h"  // from @llvm-project
+#include "mlir/IR/Builders.h"  // from @llvm-project
+#include "mlir/IR/BuiltinOps.h"  // from @llvm-project
+#include "mlir/IR/BuiltinTypes.h"  // from @llvm-project
+#include "mlir/IR/MLIRContext.h"  // from @llvm-project
+#include "mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
+#include "mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
+#include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"  // from @llvm-project
+#include "xla/mlir_hlo/mhlo/IR/hlo_ops.h"
+#include "xla/mlir_hlo/mhlo/transforms/passes.h"
+#include "xla/pjrt/mlir_to_hlo.h"
+
 #pragma GCC diagnostic pop
 using namespace xla;
 
@@ -51,8 +72,10 @@ typedef struct _hlo_module_proto *hlo_module_proto;
 #endif
 
 status pjrt_cpu_client_create(pjrt_client *);
+status pjrt_metal_client_create(pjrt_client *output);
 status pjrt_gpu_client_create(pjrt_client *, double, bool);
 status pjrt_tpu_client_create(pjrt_client *, int);
+status pjrt_load_plugin(const char* device_type, const char* lib_path);
 void pjrt_client_free(pjrt_client);
 int pjrt_client_device_count(pjrt_client);
 int pjrt_client_addressable_device_count(pjrt_client);

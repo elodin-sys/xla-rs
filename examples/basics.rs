@@ -2,9 +2,10 @@ use anyhow::Result;
 extern crate xla;
 
 fn main() -> Result<()> {
-    xla::set_tf_min_log_level(xla::TfLogLevel::Warning);
+    xla::set_tf_min_log_level(xla::TfLogLevel::Info);
 
-    let client = xla::PjRtClient::cpu()?;
+    //let client = xla::PjRtClient::cpu()?;
+    let client = xla::PjRtClient::gpu(0.95, false)?;
     println!("{} {} {}", client.platform_name(), client.platform_version(), client.device_count());
     for device in client.devices().iter() {
         println!(
@@ -30,14 +31,14 @@ fn main() -> Result<()> {
         result.to_vec::<f32>(),
         result.get_first_element::<f32>()?,
     );
-    let param = xla_builder.parameter_s(0, &xla::Shape::array::<f32>(vec![]), "p")?;
-    let sum = param.add_(&param)?;
-    let sum = sum.sqrt()?.build()?;
-    let result = client.compile(&sum)?;
-    let result = result.execute(&[xla::Literal::from(12f32)])?[0][0].to_literal_sync()?;
-    println!("Result: {:?} {:?}", result.shape(), result.get_first_element::<f32>());
-    let result = client.compile(&sum)?;
-    let result = result.execute(&[xla::Literal::from(13f32)])?[0][0].to_literal_sync()?;
-    println!("Result: {:?} {:?}", result.shape(), result.get_first_element::<f32>());
+    // let param = xla_builder.parameter_s(0, &xla::Shape::array::<f32>(vec![]), "p")?;
+    // let sum = param.add_(&param)?;
+    // let sum = sum.sqrt()?.build()?;
+    // let result = client.compile(&sum)?;
+    // let result = result.execute(&[xla::Literal::from(12f32)])?[0][0].to_literal_sync()?;
+    // println!("Result: {:?} {:?}", result.shape(), result.get_first_element::<f32>());
+    // let result = client.compile(&sum)?;
+    // let result = result.execute(&[xla::Literal::from(13f32)])?[0][0].to_literal_sync()?;
+    // println!("Result: {:?} {:?}", result.shape(), result.get_first_element::<f32>());
     Ok(())
 }
