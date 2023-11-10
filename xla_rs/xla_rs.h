@@ -8,39 +8,37 @@
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #pragma GCC diagnostic ignored "-Wreturn-type"
+#include "mlir/Dialect/Arith/IR/Arith.h"               // from @llvm-project
+#include "mlir/Dialect/Func/IR/FuncOps.h"              // from @llvm-project
+#include "mlir/Dialect/SparseTensor/IR/SparseTensor.h" // from @llvm-project
+#include "mlir/IR/Attributes.h"                        // from @llvm-project
+#include "mlir/IR/Builders.h"                          // from @llvm-project
+#include "mlir/IR/BuiltinOps.h"                        // from @llvm-project
+#include "mlir/IR/BuiltinTypes.h"                      // from @llvm-project
+#include "mlir/IR/MLIRContext.h"                       // from @llvm-project
+#include "mlir/Parser/Parser.h"                        // from @llvm-project
+#include "mlir/Pass/PassManager.h"                     // from @llvm-project
 #include "xla/client/client_library.h"
 #include "xla/client/lib/constants.h"
 #include "xla/client/lib/matrix.h"
 #include "xla/client/xla_builder.h"
 #include "xla/literal_util.h"
+#include "xla/mlir_hlo/mhlo/IR/hlo_ops.h"
+#include "xla/mlir_hlo/mhlo/transforms/passes.h"
 #include "xla/pjrt/gpu/gpu_helpers.h"
 #include "xla/pjrt/gpu/se_gpu_pjrt_client.h"
-#include "xla/pjrt/pjrt_client.h"
+#include "xla/pjrt/mlir_to_hlo.h"
 #include "xla/pjrt/pjrt_api.h"
 #include "xla/pjrt/pjrt_c_api_client.h"
+#include "xla/pjrt/pjrt_client.h"
 #include "xla/pjrt/pjrt_stream_executor_client.h"
 #include "xla/pjrt/tfrt_cpu_pjrt_client.h"
 #include "xla/pjrt/tpu_client.h"
-#include "xla/pjrt/mlir_to_hlo.h"
-#include "xla/pjrt/gpu/gpu_helpers.h"
-#include "xla/service/llvm_ir/llvm_util.h"
 #include "xla/service/hlo_parser.h"
+#include "xla/service/llvm_ir/llvm_util.h"
 #include "xla/shape_util.h"
-#include "xla/translate/hlo_to_mhlo/hlo_to_mlir_hlo.h"
 #include "xla/statusor.h"
-#include "mlir/Parser/Parser.h"  // from @llvm-project
-#include "mlir/Pass/PassManager.h"  // from @llvm-project
-#include "mlir/IR/Attributes.h"  // from @llvm-project
-#include "mlir/IR/Builders.h"  // from @llvm-project
-#include "mlir/IR/BuiltinOps.h"  // from @llvm-project
-#include "mlir/IR/BuiltinTypes.h"  // from @llvm-project
-#include "mlir/IR/MLIRContext.h"  // from @llvm-project
-#include "mlir/Dialect/Arith/IR/Arith.h"  // from @llvm-project
-#include "mlir/Dialect/Func/IR/FuncOps.h"  // from @llvm-project
-#include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"  // from @llvm-project
-#include "xla/mlir_hlo/mhlo/IR/hlo_ops.h"
-#include "xla/mlir_hlo/mhlo/transforms/passes.h"
-#include "xla/pjrt/mlir_to_hlo.h"
+#include "xla/translate/hlo_to_mhlo/hlo_to_mlir_hlo.h"
 
 #pragma GCC diagnostic pop
 using namespace xla;
@@ -75,7 +73,7 @@ status pjrt_cpu_client_create(pjrt_client *);
 status pjrt_metal_client_create(pjrt_client *output);
 status pjrt_gpu_client_create(pjrt_client *, double, bool);
 status pjrt_tpu_client_create(pjrt_client *, int);
-status pjrt_load_plugin(const char* device_type, const char* lib_path);
+status pjrt_load_plugin(const char *device_type, const char *lib_path);
 void pjrt_client_free(pjrt_client);
 int pjrt_client_device_count(pjrt_client);
 int pjrt_client_addressable_device_count(pjrt_client);
@@ -192,6 +190,8 @@ xla_op op_gather(const xla_op, const xla_op, const int64_t *, size_t,
                  const int64_t *, const int64_t *, size_t);
 xla_op op_convert_element_type(const xla_op, int);
 xla_op op_dimensions_size(const xla_op, int64_t);
+xla_op op_map(const xla_builder b, const xla_op arg, const xla_computation comp,
+              const int64_t *dims, size_t ndims);
 xla_op op_reduce(const xla_op, const xla_op, const xla_computation,
                  const int64_t *, size_t);
 xla_op op_internal_error(const xla_builder, const char *);

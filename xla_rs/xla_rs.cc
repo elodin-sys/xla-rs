@@ -739,6 +739,15 @@ xla_op op_dimensions_size(const xla_op arg, int64_t dim) {
   END_PROTECT_OP(arg)
 }
 
+xla_op op_map(const xla_builder b, const xla_op arg, const xla_computation comp,
+              const int64_t *dims, size_t ndims) {
+  BEGIN_PROTECT_OP
+  return new XlaOp(Map(b, absl::Span<const XlaOp>(arg, 1), *comp,
+                       absl::Span<const int64_t>(dims, ndims),
+                       absl::Span<const XlaOp>()));
+  END_PROTECT_OP(arg)
+}
+
 xla_op op_reduce(const xla_op arg, const xla_op init,
                  const xla_computation comp, const int64_t *dims,
                  size_t ndims) {

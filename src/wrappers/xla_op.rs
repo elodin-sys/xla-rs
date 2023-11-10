@@ -361,6 +361,14 @@ impl XlaOp {
         self.maybe_keep_dims(op, &dims, keep_dims)
     }
 
+    pub fn map(&self, comp: XlaComputation, dims: &[i64]) -> Result<Self> {
+        let dims = self.normalize_indexes(dims)?;
+        let op = unsafe {
+            c_lib::op_map(self.builder.ptr(), self.op, comp.0, dims.as_ptr(), dims.len())
+        };
+        self.wrap(op)
+    }
+
     /// Sequentially execute `body` until `cond` fails.
     ///
     /// - `init` argument has a type `T`.
