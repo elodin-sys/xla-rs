@@ -127,7 +127,7 @@ async fn download_xla(xla_dir: &Path) -> Result<(), Box<dyn std::error::Error>> 
     let arch = env::var("CARGO_CFG_TARGET_ARCH").expect("Unable to get TARGET_ARCH");
     let url = match (os.as_str(), arch.as_str()) {
         ("macos", arch) => format!("https://github.com/elodin-sys/xla/releases/download/v0.5.4/xla_extension-{}-darwin-cpu.tar.gz", arch),
-        ("linux", arch) => format!("https://github.com/elodin-sys/xla/releases/download/v0.5.4/xla_extension-{}-linux-cpu.tar.gz", arch),
+        ("linux", arch) => format!("https://github.com/elodin-sys/xla/releases/download/v0.5.4/xla_extension-{}-linux-gnu-cpu.tar.gz", arch),
         (os, arch) => panic!("{}-{} is an unsupported platform", os, arch)
     };
     let res = reqwest::get(url).await?;

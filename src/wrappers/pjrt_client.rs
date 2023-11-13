@@ -1,10 +1,8 @@
 //! A device (CPUs, GPUs, TPUs) where computations can be run.
 use super::{ArrayElement, Literal, PjRtBuffer, PjRtDevice, PjRtLoadedExecutable, XlaComputation};
 use crate::{c_lib, Error, Result};
-use std::ffi::CString;
 use std::marker::PhantomData;
 use std::rc::Rc;
-use std::sync::OnceLock;
 
 pub(super) struct PjRtClientInternal(pub(self) c_lib::pjrt_client);
 
@@ -39,7 +37,7 @@ impl PjRtClient {
     /// `preallocate`.
     #[cfg(target_os = "macos")]
     pub fn gpu(_memory_fraction: f64, _preallocate: bool) -> Result<Self> {
-        use std::{fs::File, io::Write, os::unix::prelude::OsStrExt};
+        use std::{ffi::CString, fs::File, io::Write, os::unix::prelude::OsStrExt, sync::OnceLock};
 
         static METAL_PJRT: &[u8] = include_bytes!(concat!(
             env!("OUT_DIR"),
