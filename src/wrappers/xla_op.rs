@@ -193,6 +193,21 @@ impl XlaOp {
         self.transpose(&index_perm)
     }
 
+    pub fn slice(&self, start_index: &[i64], stop_index: &[i64], strides: &[i64]) -> Result<Self> {
+        let op = unsafe {
+            c_lib::op_slice(
+                self.op,
+                start_index.as_ptr(),
+                start_index.len() as i64,
+                stop_index.as_ptr(),
+                stop_index.len() as i64,
+                strides.as_ptr(),
+                strides.len() as i64,
+            )
+        };
+        self.wrap(op)
+    }
+
     /// Create a node that has a partial view on the data of the original node. Indexes on the
     /// target dimension `dim` are restricted to the values between `start_index` (inclusive) and
     /// `stop_index` (exclusive), using the associated `stride` as a step between two values.

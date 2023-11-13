@@ -181,6 +181,8 @@ xla_op op_clamp(const xla_op, const xla_op, const xla_op);
 xla_op op_select(const xla_op, const xla_op, const xla_op);
 xla_op op_rng_uniform(const xla_op, const xla_op, int, int, const int64_t *);
 xla_op op_rng_normal(const xla_op, const xla_op, int, int, const int64_t *);
+xla_op op_slice(const xla_op arg, const int64_t *start_indices, int64_t n_start, const int64_t *stop_indices, int64_t n_stop,
+                       const int64_t *strides, int64_t n_strides);
 xla_op op_slice_in_dim(const xla_op, int64_t, int64_t, int64_t, int64_t);
 xla_op op_concat_in_dim(const xla_op, const xla_op *, size_t, int64_t);
 xla_op op_tuple(const xla_builder, const xla_op *, size_t);

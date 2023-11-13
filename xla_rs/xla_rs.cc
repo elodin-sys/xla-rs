@@ -667,6 +667,14 @@ xla_op op_rng_normal(const xla_op arg1, const xla_op arg2, int pr_type,
   END_PROTECT_OP(arg1)
 }
 
+xla_op op_slice(const xla_op arg, const int64_t *start_indices, int64_t n_start, const int64_t *stop_indices, int64_t n_stop,
+                       const int64_t *strides, int64_t n_strides) {
+  BEGIN_PROTECT_OP
+  return new XlaOp(Slice(*arg, absl::Span<const int64_t>(start_indices, n_start), absl::Span<const int64_t>(stop_indices, n_stop), absl::Span<const int64_t>(strides, n_strides)));
+  END_PROTECT_OP(arg)
+}
+
+
 xla_op op_slice_in_dim(const xla_op arg, int64_t start, int64_t stop,
                        int64_t stride, int64_t dim) {
   BEGIN_PROTECT_OP
