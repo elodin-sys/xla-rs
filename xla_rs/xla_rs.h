@@ -205,6 +205,7 @@ xla_op op_while(const xla_computation, const xla_computation, const xla_op);
 xla_op op_conditional(const xla_op, const xla_op, const xla_computation,
                       const xla_op, const xla_computation);
 xla_builder op_builder(const xla_op);
+void setup_alias(const xla_builder b, int64_t , int64_t );
 
 int xla_op_valid(const xla_op);
 void xla_op_free(xla_op);

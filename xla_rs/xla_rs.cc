@@ -838,6 +838,10 @@ xla_op op_conditional(const xla_op pred, const xla_op true_op,
   END_PROTECT_OP(pred)
 }
 
+void setup_alias(const xla_builder b, int64_t param_number, int64_t output_index) {
+  b->SetUpAlias({output_index}, param_number, {}, HloInputOutputAliasConfig::AliasKind::kMustAlias);
+}
+
 xla_builder op_builder(const xla_op arg) { return arg->builder(); }
 
 int xla_op_valid(const xla_op op) { return op->valid(); }
@@ -906,20 +910,21 @@ status compile(const pjrt_client client, const xla_computation computation,
                pjrt_loaded_executable *output) {
   CompileOptions options;
   mlir::MLIRContext context;
-  mlir::OwningOpRef<mlir::ModuleOp> module =
-      mlir::ModuleOp::create(mlir::UnknownLoc::get(&context));
-  context.loadDialect<mlir::func::FuncDialect>();
-  context.loadDialect<mlir::mhlo::MhloDialect>();
-  MAYBE_RETURN_STATUS(ConvertHloToMlirHlo(*module, &computation->proto(),
-                                          /*import_all_computations=*/true));
-  mlir::PassManager pm(&context);
-  pm.addPass(mlir::mhlo::createHloLegalizeToStablehloPass());
-  if (pm.run(*module).failed()) {
-    return new Status(
-        InvalidArgument("Failed to convert xla computation to mlir"));
-  }
+  // mlir::OwningOpRef<mlir::ModuleOp> module =
+  //     mlir::ModuleOp::create(mlir::UnknownLoc::get(&context));
+  // context.loadDialect<mlir::func::FuncDialect>();
+  // context.loadDialect<mlir::mhlo::MhloDialect>();
+  // MAYBE_RETURN_STATUS(ConvertHloToMlirHlo(*module, &computation->proto(),
+  //                                         /*import_all_computations=*/true));
+  // std::cout << PrintModule(*module);
+  // mlir::PassManager pm(&context);
+  // pm.addPass(mlir::mhlo::createHloLegalizeToStablehloPass());
+  // if (pm.run(*module).failed()) {
+  //   return new Status(
+  //       InvalidArgument("Failed to convert xla computation to mlir"));
+  // }
 
-  ASSIGN_OR_RETURN_STATUS(executable, (*client)->Compile(*module, options));
+  ASSIGN_OR_RETURN_STATUS(executable, (*client)->Compile(*computation, options));
   *output = executable.release();
   return nullptr;
 }
@@ -971,6 +976,7 @@ status execute_b(const pjrt_loaded_executable exe, const pjrt_buffer *inputs,
                  int ninputs, pjrt_buffer ***outputs) {
   auto client = exe->client();
   ExecuteOptions options;
+  options.untuple_result = true;
   options.strict_shape_checking = false;
   std::vector<PjRtBuffer *> input_buffer_ptrs(inputs, inputs + ninputs);
   ASSIGN_OR_RETURN_STATUS(results, exe->Execute({input_buffer_ptrs}, options));

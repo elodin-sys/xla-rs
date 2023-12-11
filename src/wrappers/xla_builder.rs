@@ -245,6 +245,12 @@ impl XlaBuilder {
         let op = unsafe { c_lib::op_tuple(self.ptr(), args.as_ptr(), args.len()) };
         self.wrap(op)
     }
+
+    pub fn setup_alias(&self, input: i64, output: i64) -> Result<()> {
+        unsafe { c_lib::setup_alias(self.ptr(), input, output) };
+        self.get_current_status()?;
+        Ok(())
+    }
 }
 
 impl Drop for XlaBuilderInternal {
