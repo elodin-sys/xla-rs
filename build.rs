@@ -66,13 +66,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let xla_dir = env_var_rerun("XLA_EXTENSION_DIR")
         .map_or_else(|| out_dir.join("xla_extension"), PathBuf::from);
     if !xla_dir.exists() {
-        download_xla(&xla_dir).await?;
+        download_xla(&out_dir).await?;
     }
-    let xla_dir = xla_dir.join("xla_extension");
 
     let jax_metal_dir =
         env_var_rerun("JAX_METAL_DIR").map_or_else(|| out_dir.join("jax_metal"), PathBuf::from);
-    if !jax_metal_dir.exists() {
+    if !jax_metal_dir.exists() && cfg!(target_os = "macos") {
         download_jax_metal(&jax_metal_dir).await?;
     }
 
