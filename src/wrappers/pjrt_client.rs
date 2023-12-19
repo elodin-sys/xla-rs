@@ -2,14 +2,16 @@
 use super::{ArrayElement, Literal, PjRtBuffer, PjRtDevice, PjRtLoadedExecutable, XlaComputation};
 use crate::{c_lib, Error, Result};
 use std::marker::PhantomData;
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub(super) struct PjRtClientInternal(pub(self) c_lib::pjrt_client);
+unsafe impl Send for PjRtClientInternal {}
+unsafe impl Sync for PjRtClientInternal {}
 
 /// A client represents a device that can be used to run some computations. A computation graph is
 /// compiled in a way that is specific to a device before it can be run.
 #[derive(Clone)]
-pub struct PjRtClient(Rc<PjRtClientInternal>);
+pub struct PjRtClient(Arc<PjRtClientInternal>);
 
 impl PjRtClient {
     /// A CPU client, this can run computations on multiple CPUs at the same time.
@@ -17,7 +19,7 @@ impl PjRtClient {
         let mut ptr: c_lib::pjrt_client = std::ptr::null_mut();
         let status = unsafe { c_lib::pjrt_cpu_client_create(&mut ptr) };
         super::handle_status(status)?;
-        Ok(Self(Rc::new(PjRtClientInternal(ptr))))
+        Ok(Self(Arc::new(PjRtClientInternal(ptr))))
     }
 
     /// A GPU client, the memory requirements are limited by the specified `memory_fraction` and
@@ -29,7 +31,7 @@ impl PjRtClient {
         let status =
             unsafe { c_lib::pjrt_gpu_client_create(&mut ptr, memory_fraction, preallocate) };
         super::handle_status(status)?;
-        Ok(Self(Rc::new(PjRtClientInternal(ptr))))
+        Ok(Self(Arc::new(PjRtClientInternal(ptr))))
     }
 
     /// A GPU client, the memory requirements are limited by the specified `memory_fraction` and
@@ -60,7 +62,7 @@ impl PjRtClient {
         super::handle_status(status)?;
         let status = unsafe { c_lib::pjrt_metal_client_create(&mut ptr) };
         super::handle_status(status)?;
-        Ok(Self(Rc::new(PjRtClientInternal(ptr))))
+        Ok(Self(Arc::new(PjRtClientInternal(ptr))))
     }
 
     /// A TPU client.
@@ -69,7 +71,7 @@ impl PjRtClient {
         let status =
             unsafe { c_lib::pjrt_tpu_client_create(&mut ptr, max_inflight_computations as i32) };
         super::handle_status(status)?;
-        Ok(Self(Rc::new(PjRtClientInternal(ptr))))
+        Ok(Self(Arc::new(PjRtClientInternal(ptr))))
     }
 
     fn ptr(&self) -> c_lib::pjrt_client {

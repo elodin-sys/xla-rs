@@ -291,6 +291,9 @@ element_type!(f64, F64, 8);
 /// specialized to a given device through a compilation step.
 pub struct XlaComputation(c_lib::xla_computation);
 
+unsafe impl Send for XlaComputation {}
+unsafe impl Sync for XlaComputation {}
+
 fn handle_status(status: c_lib::status) -> Result<()> {
     if status.is_null() {
         Ok(())

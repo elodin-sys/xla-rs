@@ -4,3 +4,5 @@
 #![allow(dead_code)]
 
 include!(concat!(env!("OUT_DIR"), "/c_xla.rs"));
+
+unsafe impl Send for _pjrt_client {}

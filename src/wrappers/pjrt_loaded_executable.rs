@@ -6,6 +6,9 @@ pub struct PjRtLoadedExecutable {
     pub(super) client: super::PjRtClient,
 }
 
+unsafe impl Send for PjRtLoadedExecutable {}
+unsafe impl Sync for PjRtLoadedExecutable {}
+
 impl PjRtLoadedExecutable {
     /// The client that owns this executable.
     pub fn client(&self) -> &super::PjRtClient {
