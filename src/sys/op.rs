@@ -1,10 +1,11 @@
 use cpp::{cpp, cpp_class};
-use cxx::{let_cxx_string, CxxString, UniquePtr};
-use std::{pin::Pin, sync::Arc};
 
-use super::{ArrayShape, Shape};
-use super::{Status, XlaBuilder, XlaComputation};
-use crate::{PrimitiveType, Result};
+use std::ops::{Add, Div, Mul, Sub};
+
+
+use super::{ArrayShape};
+use super::{XlaBuilder, XlaComputation};
+use crate::{PrimitiveType};
 
 cpp! {{
     #include "xla/client/xla_builder.h"
@@ -845,3 +846,26 @@ impl XlaOp {
         }
     }
 }
+
+macro_rules! bin_op_impl {
+    ($trait:ident, $op:tt) => {
+        impl $trait for XlaOp {
+            type Output = XlaOp;
+            fn $op(self, rhs: Self) -> Self {
+                XlaOp::$op(&self, &rhs)
+            }
+        }
+
+        impl<'a> $trait<&'a Self> for &'a XlaOp {
+            type Output = XlaOp;
+            fn $op(self, rhs: &'a Self) -> XlaOp {
+                XlaOp::$op(self, rhs)
+            }
+        }
+    };
+}
+
+bin_op_impl!(Add, add);
+bin_op_impl!(Sub, sub);
+bin_op_impl!(Mul, mul);
+bin_op_impl!(Div, div);

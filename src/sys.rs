@@ -1,9 +1,8 @@
 use std::{marker::PhantomData, pin::Pin};
 
+use crate::{ArrayElement, Error, Result};
 use cpp::{cpp, cpp_class};
-use cxx::{let_cxx_string, CxxString, CxxVector, UniquePtr};
-
-use crate::{ArrayElement, ArrayShape, Error, NativeType, PrimitiveType, Result};
+use cxx::{let_cxx_string, CxxString, UniquePtr};
 
 mod op;
 mod shape;

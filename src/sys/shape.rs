@@ -1,5 +1,5 @@
 use cpp::{cpp, cpp_class};
-use cxx::CxxVector;
+
 
 use crate::{ArrayElement, ElementType, PrimitiveType};
 cpp_class!(pub unsafe struct RawShape as "Shape");
@@ -98,7 +98,7 @@ impl Shape {
         }
     }
 
-    pub(crate) fn raw_shape(&self) -> RawShape {
+    pub fn raw_shape(&self) -> RawShape {
         match self {
             Self::Tuple(shapes) => {
                 let shapes = shapes.iter().map(|s| s.raw_shape()).collect::<Vec<_>>();

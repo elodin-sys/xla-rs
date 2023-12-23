@@ -33,12 +33,12 @@
 //! let result = result[0][0].to_literal_sync()?.to_vec::<f32>()?;
 //! ```
 
-mod c_lib;
+mod element_type;
 mod error;
 pub mod sys;
-mod wrappers;
+pub use element_type::*;
 pub use error::{Error, Result};
-pub use wrappers::*;
+pub use sys::*;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TfLogLevel {

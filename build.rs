@@ -25,35 +25,6 @@ impl OS {
     }
 }
 
-fn make_shared_lib<P: AsRef<Path>>(os: OS, xla_dir: P) {
-    println!("cargo:rerun-if-changed=xla_rs/xla_rs.cc");
-    println!("cargo:rerun-if-changed=xla_rs/xla_rs.h");
-    match os {
-        OS::Linux | OS::MacOS => {
-            cc::Build::new()
-                .cpp(true)
-                .pic(true)
-                .warnings(false)
-                .flag(&format!("-isystem{}", xla_dir.as_ref().join("include").display()))
-                .flag("-std=c++17")
-                .flag("-Wno-deprecated-declarations")
-                .flag("-DLLVM_ON_UNIX=1")
-                .flag("-DLLVM_VERSION_STRING=")
-                .file("xla_rs/xla_rs.cc")
-                .compile("xla_rs");
-        }
-        OS::Windows => {
-            cc::Build::new()
-                .cpp(true)
-                .pic(true)
-                .warnings(false)
-                .include(xla_dir.as_ref().join("include"))
-                .file("xla_rs/xla_rs.cc")
-                .compile("xla_rs");
-        }
-    };
-}
-
 fn env_var_rerun(name: &str) -> Option<String> {
     println!("cargo:rerun-if-env-changed={name}");
     env::var(name).ok()
@@ -90,20 +61,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-changed=xla_rs/xla_rs.h");
     println!("cargo:rerun-if-changed=xla_rs/xla_rs.cc");
 
-    let bindings = bindgen::Builder::default()
-        .header("xla_rs/xla_rs.h")
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
-        .generate()
-        .expect("Unable to generate bindings");
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-    bindings.write_to_file(out_path.join("c_xla.rs")).expect("Couldn't write bindings!");
-
     // Exit early on docs.rs as the C++ library would not be available.
     if std::env::var("DOCS_RS").is_ok() {
         return Ok(());
     }
-
-    make_shared_lib(os, &xla_dir);
 
     // The --copy-dt-needed-entries -lstdc++ are helpful to get around some
     // "DSO missing from command line" error
