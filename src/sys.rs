@@ -3,10 +3,13 @@ use std::{marker::PhantomData, pin::Pin};
 use cpp::{cpp, cpp_class};
 use cxx::{let_cxx_string, CxxString, CxxVector, UniquePtr};
 
-use crate::{ArrayElement, ArrayShape, Error, NativeType, PrimitiveType, Result, Shape};
+use crate::{ArrayElement, ArrayShape, Error, NativeType, PrimitiveType, Result};
 
 mod op;
+mod shape;
+
 pub use op::*;
+pub use shape::*;
 
 cpp! {{
     #include "xla/client/xla_builder.h"
@@ -19,6 +22,8 @@ cpp! {{
     #include "xla/pjrt/pjrt_client.h"
     #include "xla/pjrt/pjrt_stream_executor_client.h"
     #include "xla/pjrt/tfrt_cpu_pjrt_client.h"
+    #include "xla/pjrt/gpu/gpu_helpers.h"
+    #include "xla/pjrt/gpu/se_gpu_pjrt_client.h"
     using namespace xla;
 }}
 cpp_class!(pub unsafe struct PjRtClient as "std::shared_ptr<PjRtClient>");
@@ -165,6 +170,29 @@ impl PjRtClient {
         let client = unsafe {
             cpp!([out_status as "Status*"] -> PjRtClient as "std::shared_ptr<PjRtClient>" {
                 auto status = xla::GetTfrtCpuClient(false);
+                if (status.ok()) {
+                    return std::shared_ptr(std::move(status.value()));
+                }else{
+                    *out_status = Status(status.status());
+                    return std::shared_ptr<PjRtClient>();
+                }
+            })
+        };
+        out_status.to_result()?;
+        if client.is_null() {
+            let backtrace = std::backtrace::Backtrace::capture().to_string();
+            return Err(Error::XlaError { msg: "Unexpected null pointer".to_string(), backtrace });
+        }
+        Ok(client)
+    }
+
+    pub fn gpu(memory_fraction: f64, preallocate: bool) -> Result<Self> {
+        let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
+        let client = unsafe {
+            cpp!([out_status as "Status*", memory_fraction as "double", preallocate as "bool"] -> PjRtClient as "std::shared_ptr<PjRtClient>" {
+                GpuAllocatorConfig allocator = {.memory_fraction = memory_fraction,
+                                       .preallocate = preallocate};
+                auto status = GetStreamExecutorGpuClient(false, allocator, 0, 0);
                 if (status.ok()) {
                     return std::shared_ptr(std::move(status.value()));
                 }else{

@@ -2,8 +2,9 @@ use cpp::{cpp, cpp_class};
 use cxx::{let_cxx_string, CxxString, UniquePtr};
 use std::{pin::Pin, sync::Arc};
 
+use super::{ArrayShape, Shape};
 use super::{Status, XlaBuilder, XlaComputation};
-use crate::{ArrayShape, Error, NativeType, PrimitiveType, Result, Shape};
+use crate::{PrimitiveType, Result};
 
 cpp! {{
     #include "xla/client/xla_builder.h"
