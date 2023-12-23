@@ -1,12 +1,14 @@
 use std::{marker::PhantomData, pin::Pin};
 
-use crate::{ArrayElement, Error, Result};
+use crate::{ArrayElement, ElementType, Error, NativeType, PrimitiveType, Result};
+use bytemuck::AnyBitPattern;
 use cpp::{cpp, cpp_class};
 use cxx::{let_cxx_string, CxxString, UniquePtr};
 
 mod op;
 mod shape;
 
+use num_traits::FromPrimitive;
 pub use op::*;
 pub use shape::*;
 
@@ -94,12 +96,17 @@ impl XlaBuilder {
         }
     }
 
-    pub fn parameter(&self, num: i64, shape: &ArrayShape, name: &str) -> Result<XlaOp> {
+    pub fn parameter(
+        &self,
+        num: i64,
+        element_ty: ElementType,
+        dims: &[i64],
+        name: &str,
+    ) -> Result<XlaOp> {
         let_cxx_string!(name = name);
-        let dims = shape.dims();
         let dims_ptr = dims.as_ptr();
         let dims_len = dims.len();
-        let prim_type = shape.primitive_type() as i32;
+        let prim_type = element_ty.primitive_type() as i32;
         let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
         let op = unsafe {
             cpp!([self as "std::shared_ptr<XlaBuilder>*", dims_ptr as "const int64_t*", dims_len as "size_t", prim_type as "int32_t", num as "int64_t", name as "std::string*"] -> XlaOp as "XlaOp" {
@@ -113,6 +120,36 @@ impl XlaBuilder {
         };
         out_status.to_result()?;
         Ok(op)
+    }
+
+    /// Create a node with a constant value defined by the specified literal.
+    pub fn constant_literal(&self, literal: &Literal) -> Result<XlaOp> {
+        let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
+        let op = unsafe {
+            cpp!([self as "std::shared_ptr<XlaBuilder>*", literal as "std::shared_ptr<Literal>*"] -> XlaOp as "XlaOp" {
+                return XlaOp(ConstantLiteral(self->get(), *literal->get()));
+            })
+        };
+        out_status.to_result()?;
+        Ok(op)
+    }
+
+    pub fn constant<T: NativeType>(&self, val: T) -> XlaOp {
+        T::constant_r0(&self, val)
+    }
+
+    pub fn setup_alias(&self, param_num: u64, output_index: u64) -> Result<()> {
+        let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
+        unsafe {
+            cpp!([self as "std::shared_ptr<XlaBuilder>*", param_num as "uint64_t", output_index as "uint64_t", out_status as "Status*"] {
+                try {
+                    (*self)->SetUpAlias({(int64_t) output_index}, (int64_t) param_num, {}, HloInputOutputAliasConfig::AliasKind::kMustAlias);
+                }catch(std::exception e) {
+                    *out_status = Status(tsl::errors::Internal(e.what()));
+                }
+            })
+        };
+        out_status.to_result()
     }
 }
 
@@ -301,7 +338,7 @@ impl PjRtBuffer {
         out_status.to_result()
     }
 
-    pub fn to_literal(&self) -> Result<Literal> {
+    pub fn to_literal_sync(&self) -> Result<Literal> {
         let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
         let lit = unsafe {
             cpp!([self as "std::unique_ptr<PjRtBuffer>*", out_status as "Status*"] -> Literal as "std::shared_ptr<Literal>" {
@@ -330,6 +367,53 @@ impl Literal {
             std::slice::from_raw_parts(data, *len)
         };
         data
+    }
+
+    pub fn primitive_type(&self) -> Result<PrimitiveType> {
+        let ty = unsafe {
+            cpp!([self as "std::unique_ptr<Literal>*"] -> i32 as "int32_t" {
+                return (*self)->shape().element_type();
+            })
+        };
+        match FromPrimitive::from_i32(ty) {
+            None => Err(Error::UnexpectedElementType(ty)),
+            Some(ty) => Ok(ty),
+        }
+    }
+
+    pub fn element_count(&self) -> usize {
+        unsafe {
+            cpp!([self as "std::unique_ptr<Literal>*"] -> usize as "size_t" {
+                return (*self)->element_count();
+            })
+        }
+    }
+
+    pub fn typed_buf<T: ArrayElement + AnyBitPattern>(&self) -> Result<&[T]> {
+        let ty = self.primitive_type()?.element_type()?;
+        if ty != T::TY {
+            Err(Error::ElementTypeMismatch { on_device: ty, on_host: T::TY })?
+        }
+        bytemuck::try_cast_slice(self.raw_buf()).map_err(Error::PodCastError)
+    }
+
+    pub fn reshape(&self, dims: &[i64]) -> Result<Literal> {
+        let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
+        let dims_ptr = dims.as_ptr();
+        let dims_len = dims.len();
+        let lit = unsafe {
+            cpp!([self as "std::unique_ptr<Literal>*", dims_ptr as "const int64_t*", dims_len as "size_t", out_status as "Status*"] -> Literal as "std::shared_ptr<Literal>" {
+                auto status = (*self)->Reshape(absl::Span(dims_ptr, dims_len));
+                if (status.ok()) {
+                    return std::make_shared<Literal>(std::move(status.value()));
+                }else{
+                    *out_status = Status(status.status());
+                    return std::make_shared<Literal>(Literal());
+                }
+            })
+        };
+        out_status.to_result()?;
+        Ok(lit)
     }
 }
 

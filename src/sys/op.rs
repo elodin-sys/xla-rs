@@ -1,11 +1,11 @@
 use cpp::{cpp, cpp_class};
 
-use std::ops::{Add, Div, Mul, Sub};
-
-
-use super::{ArrayShape};
+use super::ArrayShape;
 use super::{XlaBuilder, XlaComputation};
-use crate::{PrimitiveType};
+use crate::Result;
+use crate::{PrimitiveType, Status};
+use std::ops::{Add, Div, Mul, Sub};
+use std::pin::Pin;
 
 cpp! {{
     #include "xla/client/xla_builder.h"
@@ -18,6 +18,24 @@ cpp! {{
 cpp_class!(pub unsafe struct XlaOp as "XlaOp");
 
 impl XlaOp {
+    pub fn build(&self) -> Result<XlaComputation> {
+        let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
+        let comp = unsafe {
+            cpp!([self as "XlaOp*", out_status as "Status*"] -> XlaComputation as "XlaComputation" {
+                auto builder = self->builder();
+                auto status = builder->Build(*self, false);
+                if (status.ok()) {
+                    return std::move(status.value());
+                }else{
+                    *out_status = Status(status.status());
+                    return XlaComputation();
+                }
+            })
+        };
+        out_status.to_result()?;
+        Ok(comp)
+    }
+
     pub fn add(&self, rhs: &Self) -> Self {
         unsafe {
             cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {

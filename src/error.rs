@@ -71,6 +71,8 @@ pub enum Error {
 
     #[error("invalid dimensions in matmul, lhs: {lhs_dims:?}, rhs: {rhs_dims:?}, {msg}")]
     MatMulIncorrectDims { lhs_dims: Vec<i64>, rhs_dims: Vec<i64>, msg: &'static str },
+    #[error("podcast error {0}")]
+    PodCastError(bytemuck::PodCastError),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

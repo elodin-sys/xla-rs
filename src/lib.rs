@@ -35,9 +35,11 @@
 
 mod element_type;
 mod error;
+mod native_type;
 pub mod sys;
 pub use element_type::*;
 pub use error::{Error, Result};
+pub use native_type::*;
 pub use sys::*;
 
 #[derive(Debug, Copy, Clone)]

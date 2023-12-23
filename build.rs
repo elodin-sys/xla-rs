@@ -40,7 +40,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if !xla_dir.exists() {
         download_xla(&out_dir).await?;
     }
-    // let xla_dir = PathBuf::from("/Users/sphw/code/elodin/xla-rs/xla_extension");
 
     cpp_build::Config::new()
         .flag("-std=c++20")
@@ -51,6 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-changed=src/sys.rs");
     println!("cargo:rerun-if-changed=src/sys/op.rs");
     println!("cargo:rerun-if-changed=src/sys/shape.rs");
+    println!("cargo:rerun-if-changed=src/native_types.rs");
 
     let jax_metal_dir =
         env_var_rerun("JAX_METAL_DIR").map_or_else(|| out_dir.join("jax_metal"), PathBuf::from);
@@ -75,7 +75,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("cargo:rustc-link-search=native={}", xla_dir.join("lib").display());
-    println!("cargo:rustc-link-lib=static=xla_rs");
     println!("cargo:rustc-link-lib=static=xla_extension");
     if os == OS::MacOS {
         println!("cargo:rustc-link-lib=framework=Foundation");

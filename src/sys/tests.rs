@@ -45,8 +45,9 @@ fn test_exec() {
     args.push(&b);
     let mut res = exec.execute_buffers(args).unwrap();
     let out = res.pop().unwrap();
-    let lit = out.to_literal().unwrap();
-    let slice = lit.raw_buf();
-    let out = f32::from_le_bytes(slice.try_into().unwrap());
-    assert_eq!(out, 3.0);
+    let lit = out.to_literal_sync().unwrap();
+    assert_eq!(lit.typed_buf::<f32>().unwrap(), &[3.0f32]);
+    // let slice = lit.raw_buf();
+    // let out = f32::from_le_bytes(slice.try_into().unwrap());
+    // assert_eq!(out, 3.0);
 }
