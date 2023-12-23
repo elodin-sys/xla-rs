@@ -30,6 +30,7 @@ unsafe fn c_ptr_to_string(ptr: *const std::ffi::c_char) -> String {
 /// The primitive types supported by XLA. `S8` is a signed 1 byte integer,
 /// `U32` is an unsigned 4 bytes integer, etc.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, FromPrimitive)]
+#[repr(i32)]
 pub enum PrimitiveType {
     Invalid = 0,
     Pred = 1,

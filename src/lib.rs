@@ -36,6 +36,7 @@
 mod c_lib;
 mod error;
 mod npy;
+pub mod sys;
 mod wrappers;
 pub use error::{Error, Result};
 pub use npy::FromRawBytes;

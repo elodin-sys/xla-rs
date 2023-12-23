@@ -63,11 +63,22 @@ fn env_var_rerun(name: &str) -> Option<String> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("missing out dir"));
     let os = OS::get();
+
     let xla_dir = env_var_rerun("XLA_EXTENSION_DIR")
         .map_or_else(|| out_dir.join("xla_extension"), PathBuf::from);
     if !xla_dir.exists() {
         download_xla(&out_dir).await?;
     }
+    let xla_dir = PathBuf::from("/Users/sphw/code/elodin/xla-rs/xla_extension");
+
+    cpp_build::Config::new()
+        .flag("-std=c++20")
+        .flag("-DLLVM_ON_UNIX=1")
+        .flag("-DLLVM_VERSION_STRING=")
+        .flag(&format!("-isystem{}", xla_dir.join("include").display()))
+        .build("src/lib.rs");
+    println!("cargo:rerun-if-changed=src/sys.rs");
+    println!("cargo:rerun-if-changed=src/sys/op.rs");
 
     let jax_metal_dir =
         env_var_rerun("JAX_METAL_DIR").map_or_else(|| out_dir.join("jax_metal"), PathBuf::from);
@@ -109,6 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("cargo:rustc-link-lib=framework=SystemConfiguration");
         println!("cargo:rustc-link-lib=framework=Security");
     }
+
     Ok(())
 }
 
