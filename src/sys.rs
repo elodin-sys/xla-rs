@@ -41,7 +41,7 @@ impl XlaBuilder {
         let_cxx_string!(name = name);
         unsafe {
             cpp!( [name as "std::string*"] -> XlaBuilder as "std::shared_ptr<XlaBuilder>" {
-                std::shared_ptr<XlaBuilder> builder(new XlaBuilder("test"));
+                std::shared_ptr<XlaBuilder> builder(new XlaBuilder(*name));
                 return builder;
             })
         }
@@ -64,36 +64,39 @@ impl XlaBuilder {
         Ok(comp)
     }
 
-    pub fn concat_in_dim(&self, others: &[XlaOp], dim: i64) -> XlaOp {
+    pub fn concat_in_dim(&self, others: &[XlaOpRef<'_>], dim: i64) -> XlaOp {
         let others_ptr = others.as_ptr();
         let others_len = others.len();
-        unsafe {
-            cpp!([self as "std::shared_ptr<XlaBuilder>*", others_ptr as "const XlaOp*", others_len as "size_t", dim as "int64_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([self as "std::shared_ptr<XlaBuilder>*", others_ptr as "const XlaOp*", others_len as "size_t", dim as "int64_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConcatInDim(self->get(), absl::Span(others_ptr, others_len), dim));
             })
-        }
+        };
+        XlaOp { raw, builder: self.clone() }
     }
 
-    pub fn tuple(&self, elems: &[XlaOp]) -> XlaOp {
+    pub fn tuple(&self, elems: &[XlaOpRef<'_>]) -> XlaOp {
         let elems_ptr = elems.as_ptr();
         let elems_len = elems.len();
-        unsafe {
-            cpp!([self as "std::shared_ptr<XlaBuilder>*", elems_ptr as "const XlaOp*", elems_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([self as "std::shared_ptr<XlaBuilder>*", elems_ptr as "const XlaOp*", elems_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(Tuple(self->get(), absl::Span(elems_ptr, elems_len)));
             })
-        }
+        };
+        XlaOp { raw, builder: self.clone() }
     }
 
-    pub fn map(&self, args: &[XlaOp], comp: &XlaComputation, dims: &[i64]) -> XlaOp {
+    pub fn map(&self, args: &[XlaOpRef<'_>], comp: &XlaComputation, dims: &[i64]) -> XlaOp {
         let args_ptr = args.as_ptr();
         let args_len = args.len();
         let dims_ptr = dims.as_ptr();
         let dims_len = dims.len();
-        unsafe {
-            cpp!([self as "std::shared_ptr<XlaBuilder>*", args_ptr as "const XlaOp*", args_len as "size_t", comp as "const XlaComputation*", dims_ptr as "const int64_t*", dims_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([self as "std::shared_ptr<XlaBuilder>*", args_ptr as "const XlaOp*", args_len as "size_t", comp as "const XlaComputation*", dims_ptr as "const int64_t*", dims_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(Map(self->get(), absl::Span(args_ptr, args_len), *comp, absl::Span(dims_ptr, dims_len)));
             })
-        }
+        };
+        XlaOp { raw, builder: self.clone() }
     }
 
     pub fn parameter(
@@ -109,7 +112,7 @@ impl XlaBuilder {
         let prim_type = element_ty.primitive_type() as i32;
         let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
         let op = unsafe {
-            cpp!([self as "std::shared_ptr<XlaBuilder>*", dims_ptr as "const int64_t*", dims_len as "size_t", prim_type as "int32_t", num as "int64_t", name as "std::string*"] -> XlaOp as "XlaOp" {
+            cpp!([self as "std::shared_ptr<XlaBuilder>*", dims_ptr as "const int64_t*", dims_len as "size_t", prim_type as "int32_t", num as "int64_t", name as "std::string*"] -> XlaOpRaw as "XlaOp" {
                 try {
                     auto shape = ShapeUtil::MakeShape((PrimitiveType)prim_type, absl::Span(dims_ptr, dims_len));
                     return XlaOp(Parameter((self->get()), num, shape, *name));
@@ -119,19 +122,19 @@ impl XlaBuilder {
             })
         };
         out_status.to_result()?;
-        Ok(op)
+        Ok(XlaOp { raw: op, builder: self.clone() })
     }
 
     /// Create a node with a constant value defined by the specified literal.
     pub fn constant_literal(&self, literal: &Literal) -> Result<XlaOp> {
         let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
         let op = unsafe {
-            cpp!([self as "std::shared_ptr<XlaBuilder>*", literal as "std::shared_ptr<Literal>*"] -> XlaOp as "XlaOp" {
+            cpp!([self as "std::shared_ptr<XlaBuilder>*", literal as "std::shared_ptr<Literal>*"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantLiteral(self->get(), *literal->get()));
             })
         };
         out_status.to_result()?;
-        Ok(op)
+        Ok(XlaOp { raw: op, builder: self.clone() })
     }
 
     pub fn constant<T: NativeType>(&self, val: T) -> XlaOp {
@@ -192,11 +195,12 @@ impl Status {
 
 impl XlaComputation {
     pub fn stmt_while(&self, body: &XlaComputation, init_value: &XlaOp) -> XlaOp {
-        unsafe {
-            cpp!([self as "const XlaComputation*", body as "const XlaComputation*", init_value as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([self as "const XlaComputation*", body as "const XlaComputation*", init_value as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(While(*self, *body, *init_value));
             })
-        }
+        };
+        XlaOp { raw, builder: init_value.builder.clone() }
     }
 }
 
@@ -435,6 +439,7 @@ impl PjRtLoadedExecutable {
             unsafe {
                 cpp!([self as "const std::shared_ptr<PjRtLoadedExecutable>*", buffers as "std::unique_ptr<std::vector<PjRtBuffer*>>", out_status as "Status*", out_ptr as "void*"] {
                     ExecuteOptions options;
+                    options.untuple_result = true;
                     auto status = (*self)->Execute(absl::Span(buffers.get(), 1), options);
                     if (status.ok()) {
                         std::vector<std::vector<std::unique_ptr<PjRtBuffer>>> bufs = std::move(status).value();

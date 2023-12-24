@@ -4,6 +4,7 @@ use super::ArrayShape;
 use super::{XlaBuilder, XlaComputation};
 use crate::Result;
 use crate::{PrimitiveType, Status};
+use std::marker::PhantomData;
 use std::ops::{Add, Div, Mul, Sub};
 use std::pin::Pin;
 
@@ -15,15 +16,32 @@ cpp! {{
     #include "xla/literal_util.h"
     using namespace xla;
 }}
-cpp_class!(pub unsafe struct XlaOp as "XlaOp");
+cpp_class!(pub unsafe struct XlaOpRaw as "XlaOp");
+
+#[derive(Clone)]
+pub struct XlaOp {
+    pub(crate) raw: XlaOpRaw,
+    pub(crate) builder: XlaBuilder,
+}
+
+#[repr(transparent)]
+pub struct XlaOpRef<'a> {
+    _raw: XlaOpRaw, // we directly cast `XlaOpRef` to `xla::XlaOp` in cpp so this field is actually used
+    _phantom: PhantomData<&'a ()>,
+}
 
 impl XlaOp {
+    pub fn as_ref(&self) -> XlaOpRef<'_> {
+        XlaOpRef { _raw: self.raw, _phantom: PhantomData }
+    }
+
     pub fn build(&self) -> Result<XlaComputation> {
+        let op = &self.raw;
         let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
         let comp = unsafe {
-            cpp!([self as "XlaOp*", out_status as "Status*"] -> XlaComputation as "XlaComputation" {
-                auto builder = self->builder();
-                auto status = builder->Build(*self, false);
+            cpp!([op as "XlaOp*", out_status as "Status*"] -> XlaComputation as "XlaComputation" {
+                auto builder = op->builder();
+                auto status = builder->Build(*op, false);
                 if (status.ok()) {
                     return std::move(status.value());
                 }else{
@@ -36,733 +54,853 @@ impl XlaOp {
         Ok(comp)
     }
 
+    fn wrap(&self, raw: XlaOpRaw) -> Self {
+        Self { raw, builder: self.builder.clone() }
+    }
+
     pub fn add(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Add(*self, *rhs));
+                    return XlaOp(Add(*op, *rhs));
                 } catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn sub(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Sub(*self, *rhs));
+                    return XlaOp(Sub(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn mul(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Mul(*self, *rhs));
+                    return XlaOp(Mul(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn div(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Div(*self, *rhs));
+                    return XlaOp(Div(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn rem(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Rem(*self, *rhs));
+                    return XlaOp(Rem(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn neg(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Neg(*self));
+                    return XlaOp(Neg(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn abs(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Abs(*self));
+                    return XlaOp(Abs(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn sqrt(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Sqrt(*self));
+                    return XlaOp(Sqrt(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn pow(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Pow(*self, *rhs));
+                    return XlaOp(Pow(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn dot(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Dot(*self, *rhs));
+                    return XlaOp(Dot(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn atan2(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Atan2(*self, *rhs));
+                    return XlaOp(Atan2(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn max(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Max(*self, *rhs));
+                    return XlaOp(Max(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn min(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Min(*self, *rhs));
+                    return XlaOp(Min(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn or(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Or(*self, *rhs));
+                    return XlaOp(Or(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn and(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(And(*self, *rhs));
+                    return XlaOp(And(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn xor(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Xor(*self, *rhs));
+                    return XlaOp(Xor(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn eq(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Eq(*self, *rhs));
+                    return XlaOp(Eq(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn ne(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Ne(*self, *rhs));
+                    return XlaOp(Ne(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn ge(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Ge(*self, *rhs));
+                    return XlaOp(Ge(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn gt(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Gt(*self, *rhs));
+                    return XlaOp(Gt(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn le(&self, rhs: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Le(*self, *rhs));
+                    return XlaOp(Le(*op, *rhs));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn not(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Not(*self));
+                    return XlaOp(Not(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn exp(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Exp(*self));
+                    return XlaOp(Exp(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn expm1(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Expm1(*self));
+                    return XlaOp(Expm1(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn floor(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Floor(*self));
+                    return XlaOp(Floor(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn ceil(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Ceil(*self));
+                    return XlaOp(Ceil(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn round(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Round(*self));
+                    return XlaOp(Round(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn log(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Log(*self));
+                    return XlaOp(Log(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn log1p(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Log1p(*self));
+                    return XlaOp(Log1p(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn logistic(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Logistic(*self));
+                    return XlaOp(Logistic(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn sign(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Sign(*self));
+                    return XlaOp(Sign(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn clz(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Clz(*self));
+                    return XlaOp(Clz(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn cos(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Cos(*self));
+                    return XlaOp(Cos(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn sin(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Sin(*self));
+                    return XlaOp(Sin(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn tanh(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Tanh(*self));
+                    return XlaOp(Tanh(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn real(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Real(*self));
+                    return XlaOp(Real(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn imag(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Imag(*self));
+                    return XlaOp(Imag(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn rsqrt(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Rsqrt(*self));
+                    return XlaOp(Rsqrt(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn cbrt(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Cbrt(*self));
+                    return XlaOp(Cbrt(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn is_finite(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(IsFinite(*self));
+                    return XlaOp(IsFinite(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn lower_triangle(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(LowerTriangle(*self));
+                    return XlaOp(LowerTriangle(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn upper_triangle(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(UpperTriangle(*self));
+                    return XlaOp(UpperTriangle(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     /*pub fn einsum1(&self, config: &str,) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", config as "const char*"] -> XlaOp as "XlaOp" {
-                return XlaOp(Einsum(*self, config));
+     * let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", config as "const char*"] -> XlaOpRaw as "XlaOp" {
+                return XlaOp(Einsum(*op, config));
             })
         }
     }
 
     pub fn einsum2(&self, arg2: &Self, config: &str) -> Self {
+    let op = &self.raw;
         unsafe {
-            cpp!([self as "const XlaOp*", arg2 as "const XlaOp*", config as "const char*"] -> XlaOp as "XlaOp" {
-                return XlaOp(Einsum(*self, arg2, config));
+            cpp!([op as "const XlaOp*", arg2 as "const XlaOp*", config as "const char*"] -> XlaOpRaw as "XlaOp" {
+                return XlaOp(Einsum(*op, arg2, config));
             })
         }
     }*/
 
     pub fn clamp(&self, min: &Self, max: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", min as "const XlaOp*", max as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", min as "const XlaOp*", max as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Clamp(*self, *min, *max));
+                    return XlaOp(Clamp(*op, *min, *max));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn copy(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Copy(*self));
+                    return XlaOp(Copy(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn zeros_like(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(ZerosLike(*self));
+                    return XlaOp(ZerosLike(*op));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn zero_like(&self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    const Shape *shape = self->builder()->GetShapePtr(*self).value();
-                    return XlaOp(Zero(self->builder(), shape->element_type()));
+                    const Shape *shape = op->builder()->GetShapePtr(*op).value();
+                    return XlaOp(Zero(op->builder(), shape->element_type()));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn reshape(&self, ds: &[i64]) -> Self {
+        let op = &self.raw;
         let ds_ptr = ds.as_ptr();
         let ds_len = ds.len();
-        unsafe {
-            cpp!([self as "const XlaOp*", ds_ptr as "const int64_t*", ds_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", ds_ptr as "const int64_t*", ds_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Reshape(*self, absl::Span(ds_ptr, ds_len)));
+                    return XlaOp(Reshape(*op, absl::Span(ds_ptr, ds_len)));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn broadcast(&self, ds: &[i64]) -> Self {
+        let op = &self.raw;
         let ds_ptr = ds.as_ptr();
         let ds_len = ds.len();
-        unsafe {
-            cpp!([self as "const XlaOp*", ds_ptr as "const int64_t*", ds_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", ds_ptr as "const int64_t*", ds_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Broadcast(*self, absl::Span(ds_ptr, ds_len)));
+                    return XlaOp(Broadcast(*op, absl::Span(ds_ptr, ds_len)));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn broadcast_in_dim(&self, dims: &[i64], broadcast_dims: &[i64]) -> Self {
+        let op = &self.raw;
         let dims_ptr = dims.as_ptr();
         let dims_len = dims.len();
         let broadcast_dims_ptr = broadcast_dims.as_ptr();
         let broadcast_dims_len = broadcast_dims.len();
-        unsafe {
-            cpp!([self as "const XlaOp*", dims_ptr as "const int64_t*", dims_len as "size_t", broadcast_dims_ptr as "const int64_t*", broadcast_dims_len as "int64_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", dims_ptr as "const int64_t*", dims_len as "size_t", broadcast_dims_ptr as "const int64_t*", broadcast_dims_len as "int64_t"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(BroadcastInDim(*self, absl::Span(dims_ptr, dims_len), absl::Span(broadcast_dims_ptr, broadcast_dims_len)));
+                    return XlaOp(BroadcastInDim(*op, absl::Span(dims_ptr, dims_len), absl::Span(broadcast_dims_ptr, broadcast_dims_len)));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn collapse(&self, ds: &[i64]) -> Self {
+        let op = &self.raw;
         let ds_ptr = ds.as_ptr();
         let ds_len = ds.len();
-        unsafe {
-            cpp!([self as "const XlaOp*", ds_ptr as "const int64_t*", ds_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", ds_ptr as "const int64_t*", ds_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Collapse(*self, absl::Span(ds_ptr, ds_len)));
+                    return XlaOp(Collapse(*op, absl::Span(ds_ptr, ds_len)));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn transpose(&self, dims: &[i64]) -> Self {
+        let op = &self.raw;
         let dims_ptr = dims.as_ptr();
         let dims_len = dims.len();
-        unsafe {
-            cpp!([self as "const XlaOp*", dims_ptr as "const int64_t*", dims_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", dims_ptr as "const int64_t*", dims_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Transpose(*self, absl::Span(dims_ptr, dims_len)));
+                    return XlaOp(Transpose(*op, absl::Span(dims_ptr, dims_len)));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn select(&self, on_true: &Self, on_false: &Self) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", on_true as "const XlaOp*", on_false as "const XlaOp*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", on_true as "const XlaOp*", on_false as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Select(*self, *on_true, *on_false));
+                    return XlaOp(Select(*op, *on_true, *on_false));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn rng_uniform(&self, sigma: &Self, shape: &ArrayShape) -> Self {
+        let op = &self.raw;
         let dims = shape.dims();
         let dims_ptr = dims.as_ptr();
         let dims_len = dims.len();
         let prim_type = shape.primitive_type() as i32;
-        unsafe {
-            cpp!([self as "const XlaOp*", sigma as "const XlaOp*", dims_ptr as "const int64_t*", dims_len as "size_t", prim_type as "int32_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", sigma as "const XlaOp*", dims_ptr as "const int64_t*", dims_len as "size_t", prim_type as "int32_t"] -> XlaOpRaw as "XlaOp" {
                 try {
                     auto shape = ShapeUtil::MakeShape((PrimitiveType)prim_type, absl::Span(dims_ptr, dims_len));
-                    return XlaOp(RngUniform(*self, *sigma, shape));
+                    return XlaOp(RngUniform(*op, *sigma, shape));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn rng_normal(&self, sigma: &Self, shape: &ArrayShape) -> Self {
+        let op = &self.raw;
         let dims = shape.dims();
         let dims_ptr = dims.as_ptr();
         let dims_len = dims.len();
         let prim_type = shape.primitive_type() as i32;
-        unsafe {
-            cpp!([self as "const XlaOp*", sigma as "const XlaOp*", dims_ptr as "const int64_t*", dims_len as "size_t", prim_type as "int32_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", sigma as "const XlaOp*", dims_ptr as "const int64_t*", dims_len as "size_t", prim_type as "int32_t"] -> XlaOpRaw as "XlaOp" {
                 try {
                     auto shape = ShapeUtil::MakeShape((PrimitiveType)prim_type, absl::Span(dims_ptr, dims_len));
-                    return XlaOp(RngNormal(*self, *sigma, shape));
+                    return XlaOp(RngNormal(*op, *sigma, shape));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn slice(&self, start_indices: &[i64], limit_indices: &[i64], strides: &[i64]) -> Self {
+        let op = &self.raw;
         let start_indices_ptr = start_indices.as_ptr();
         let start_indices_len = start_indices.len();
         let limit_indices_ptr = limit_indices.as_ptr();
         let limit_indices_len = limit_indices.len();
         let strides_ptr = strides.as_ptr();
         let strides_len = strides.len();
-        unsafe {
-            cpp!([self as "const XlaOp*", start_indices_ptr as "const int64_t*", start_indices_len as "size_t", limit_indices_ptr as "const int64_t*", limit_indices_len as "size_t", strides_ptr as "const int64_t*", strides_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", start_indices_ptr as "const int64_t*", start_indices_len as "size_t", limit_indices_ptr as "const int64_t*", limit_indices_len as "size_t", strides_ptr as "const int64_t*", strides_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Slice(*self, absl::Span(start_indices_ptr, start_indices_len), absl::Span(limit_indices_ptr, limit_indices_len), absl::Span(strides_ptr, strides_len)));
+                    return XlaOp(Slice(*op, absl::Span(start_indices_ptr, start_indices_len), absl::Span(limit_indices_ptr, limit_indices_len), absl::Span(strides_ptr, strides_len)));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn slice_in_dim(&self, start_index: i64, limit_index: i64, stride: i64, dim: i64) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", start_index as "int64_t", limit_index as "int64_t", dim as "int64_t", stride as "int64_t"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", start_index as "int64_t", limit_index as "int64_t", dim as "int64_t", stride as "int64_t"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(SliceInDim(*self, start_index, limit_index, stride, dim));
+                    return XlaOp(SliceInDim(*op, start_index, limit_index, stride, dim));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn get_tuple_element(&self, index: i64) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", index as "int64_t"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", index as "int64_t"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(GetTupleElement(*self, index));
+                    return XlaOp(GetTupleElement(*op, index));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn gather(
@@ -773,6 +911,7 @@ impl XlaOp {
         start_index_map: &[isize],
         slice_sizes: &[isize],
     ) -> Self {
+        let op = &self.raw;
         let offset_dims_ptr = offset_dims.as_ptr();
         let offset_dims_len = offset_dims.len();
         let slice_dims_ptr = slice_dims.as_ptr();
@@ -781,8 +920,8 @@ impl XlaOp {
         let start_index_map_len = start_index_map.len();
         let slice_sizes_ptr = slice_sizes.as_ptr();
         let slice_sizes_len = slice_sizes.len();
-        unsafe {
-            cpp!([self as "const XlaOp*", rhs as "const XlaOp*", offset_dims_ptr as "const int64_t*", offset_dims_len as "size_t", slice_dims_ptr as "const int64_t*", slice_dims_len as "size_t", start_index_map_ptr as "const int64_t*", start_index_map_len as "size_t", slice_sizes_ptr as "const int64_t*", slice_sizes_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*", offset_dims_ptr as "const int64_t*", offset_dims_len as "size_t", slice_dims_ptr as "const int64_t*", slice_dims_len as "size_t", start_index_map_ptr as "const int64_t*", start_index_map_len as "size_t", slice_sizes_ptr as "const int64_t*", slice_sizes_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                     GatherDimensionNumbers dn;
                     for (size_t i = 0; i < offset_dims_len; ++i) {
                         dn.add_offset_dims(offset_dims_ptr[i]);
@@ -794,48 +933,55 @@ impl XlaOp {
                         dn.add_start_index_map(start_index_map_ptr[i]);
                     }
                     auto ss = absl::Span<const int64_t>(slice_sizes_ptr, slice_sizes_len);
-                    return XlaOp(Gather(*self, *rhs, dn, ss));
+                    return XlaOp(Gather(*op, *rhs, dn, ss));
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn convert_element_type(&self, ty: PrimitiveType) -> Self {
+        let op = &self.raw;
         let ty = ty as i32;
-        unsafe {
-            cpp!([self as "const XlaOp*", ty as "int32_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", ty as "int32_t"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(ConvertElementType(*self, (PrimitiveType)ty));
+                    return XlaOp(ConvertElementType(*op, (PrimitiveType)ty));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn get_dimension_size(&self, dim: i64) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", dim as "int64_t"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", dim as "int64_t"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(GetDimensionSize(*self, dim));
+                    return XlaOp(GetDimensionSize(*op, dim));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn reduce(&self, init_value: &Self, comp: &XlaComputation, dims: &[i64]) -> Self {
+        let op = &self.raw;
         let dims_ptr = dims.as_ptr();
         let dims_len = dims.len();
-        unsafe {
-            cpp!([self as "const XlaOp*", init_value as "const XlaOp*", comp as "const XlaComputation*", dims_ptr as "const int64_t*", dims_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", init_value as "const XlaOp*", comp as "const XlaComputation*", dims_ptr as "const int64_t*", dims_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Reduce(*self, *init_value, *comp, absl::Span(dims_ptr, dims_len)));
+                    return XlaOp(Reduce(*op, *init_value, *comp, absl::Span(dims_ptr, dims_len)));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn conditional(
@@ -845,23 +991,21 @@ impl XlaOp {
         false_op: &Self,
         on_false: &XlaComputation,
     ) -> Self {
-        unsafe {
-            cpp!([self as "const XlaOp*", true_op as "const XlaOp*", on_true as "const XlaComputation*", false_op as "const XlaOp*", on_false as "const XlaComputation*"] -> XlaOp as "XlaOp" {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", true_op as "const XlaOp*", on_true as "const XlaComputation*", false_op as "const XlaOp*", on_false as "const XlaComputation*"] -> XlaOpRaw as "XlaOp" {
                 try {
-                    return XlaOp(Conditional(*self, *true_op, *on_true, *false_op, *on_false));
+                    return XlaOp(Conditional(*op, *true_op, *on_true, *false_op, *on_false));
                 }catch(std::exception e) {
-                    return XlaOp(self->builder()->ReportError(tsl::errors::Internal(e.what())));
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
             })
-        }
+        };
+        self.wrap(raw)
     }
 
     pub fn builder(&self) -> &XlaBuilder {
-        unsafe {
-            cpp!([self as "const XlaOp*"] -> &XlaBuilder as "const XlaBuilder*" {
-                return self->builder();
-            })
-        }
+        &self.builder
     }
 }
 

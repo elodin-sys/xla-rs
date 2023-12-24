@@ -1,4 +1,4 @@
-use crate::{Literal, XlaBuilder, XlaOp};
+use crate::{Literal, XlaBuilder, XlaOp, XlaOpRaw};
 use bytemuck::Pod;
 use cpp::cpp;
 
@@ -25,21 +25,23 @@ pub trait NativeType: Copy + Pod {
 
 impl NativeType for f64 {
     fn constant_r0(builder: &XlaBuilder, value: Self) -> XlaOp {
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "double"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "double"] ->XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR0<double>(builder->get(), value));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
         let value_ptr = value.as_ptr();
         let value_len = value.len();
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const double*", value_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const double*", value_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR1<double>(builder->get(), absl::Span<const double>(value_ptr, value_len)));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn create_r0(self) -> Literal {
@@ -63,21 +65,23 @@ impl NativeType for f64 {
 
 impl NativeType for f32 {
     fn constant_r0(builder: &XlaBuilder, value: Self) -> XlaOp {
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "float"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "float"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR0<float>(builder->get(), value));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
         let value_ptr = value.as_ptr();
         let value_len = value.len();
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const float*", value_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const float*", value_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR1<float>(builder->get(), absl::Span<const float>(value_ptr, value_len)));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn create_r0(self) -> Literal {
@@ -101,21 +105,23 @@ impl NativeType for f32 {
 
 impl NativeType for u64 {
     fn constant_r0(builder: &XlaBuilder, value: Self) -> XlaOp {
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "uint64_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "uint64_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR0<uint64_t>(builder->get(), value));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
         let value_ptr = value.as_ptr();
         let value_len = value.len();
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const uint64_t*", value_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const uint64_t*", value_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR1<uint64_t>(builder->get(), absl::Span<const uint64_t>(value_ptr, value_len)));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn create_r0(self) -> Literal {
@@ -139,21 +145,23 @@ impl NativeType for u64 {
 
 impl NativeType for u32 {
     fn constant_r0(builder: &XlaBuilder, value: Self) -> XlaOp {
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "uint32_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "uint32_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR0<uint32_t>(builder->get(), value));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
         let value_ptr = value.as_ptr();
         let value_len = value.len();
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const uint32_t*", value_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const uint32_t*", value_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR1<uint32_t>(builder->get(), absl::Span<const uint32_t>(value_ptr, value_len)));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn create_r0(self) -> Literal {
@@ -177,21 +185,23 @@ impl NativeType for u32 {
 
 impl NativeType for u16 {
     fn constant_r0(builder: &XlaBuilder, value: Self) -> XlaOp {
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "uint16_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "uint16_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR0<uint16_t>(builder->get(), value));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
         let value_ptr = value.as_ptr();
         let value_len = value.len();
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const uint16_t*", value_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const uint16_t*", value_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR1<uint16_t>(builder->get(), absl::Span<const uint16_t>(value_ptr, value_len)));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn create_r0(self) -> Literal {
@@ -215,21 +225,23 @@ impl NativeType for u16 {
 
 impl NativeType for i64 {
     fn constant_r0(builder: &XlaBuilder, value: Self) -> XlaOp {
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "int64_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "int64_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR0<int64_t>(builder->get(), value));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
         let value_ptr = value.as_ptr();
         let value_len = value.len();
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const int64_t*", value_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const int64_t*", value_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR1<int64_t>(builder->get(), absl::Span<const int64_t>(value_ptr, value_len)));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn create_r0(self) -> Literal {
@@ -253,21 +265,23 @@ impl NativeType for i64 {
 
 impl NativeType for i32 {
     fn constant_r0(builder: &XlaBuilder, value: Self) -> XlaOp {
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "int32_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "int32_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR0<int32_t>(builder->get(), value));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
         let value_ptr = value.as_ptr();
         let value_len = value.len();
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const int32_t*", value_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const int32_t*", value_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR1<int32_t>(builder->get(), absl::Span<const int32_t>(value_ptr, value_len)));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn create_r0(self) -> Literal {
@@ -291,21 +305,23 @@ impl NativeType for i32 {
 
 impl NativeType for i16 {
     fn constant_r0(builder: &XlaBuilder, value: Self) -> XlaOp {
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "int16_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value as "int16_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR0<int16_t>(builder->get(), value));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
         let value_ptr = value.as_ptr();
         let value_len = value.len();
-        unsafe {
-            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const int16_t*", value_len as "size_t"] -> XlaOp as "XlaOp" {
+        let raw = unsafe {
+            cpp!([builder as "std::shared_ptr<XlaBuilder>*", value_ptr as "const int16_t*", value_len as "size_t"] -> XlaOpRaw as "XlaOp" {
                 return XlaOp(ConstantR1<int16_t>(builder->get(), absl::Span<const int16_t>(value_ptr, value_len)));
             })
-        }
+        };
+        XlaOp { raw, builder: builder.clone() }
     }
 
     fn create_r0(self) -> Literal {
