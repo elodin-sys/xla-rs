@@ -1,5 +1,5 @@
 use crate::{
-    ArrayElement, Error, PjRtBuffer, PjRtLoadedExecutable, Result, Status, XlaComputation,
+    ArrayElement, Error, Literal, PjRtBuffer, PjRtLoadedExecutable, Result, Status, XlaComputation,
 };
 use cpp::{cpp, cpp_class};
 use std::pin::Pin;
@@ -143,6 +143,32 @@ impl PjRtClient {
                     absl::Span(dims_ptr, dims_len), {},
                     PjRtClient::HostBufferSemantics::kImmutableOnlyDuringCall, []() {}, device
                 );
+                if (status.ok()) {
+                    return std::unique_ptr(std::move(status.value()));
+                }else{
+                    *out_status = Status(status.status());
+                    return std::unique_ptr<PjRtBuffer>();
+                }
+            })
+        };
+        out_status.to_result()?;
+        if buffer.is_null() {
+            let backtrace = std::backtrace::Backtrace::capture().to_string();
+            return Err(Error::XlaError {
+                msg: "Unexpected null pointer".to_string(),
+                backtrace,
+            });
+        }
+        Ok(buffer)
+    }
+
+    pub fn copy_literal(&self, literal: &Literal) -> Result<PjRtBuffer> {
+        let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
+        let buffer = unsafe {
+            cpp!([self as "std::shared_ptr<PjRtClient>*", literal as "const std::shared_ptr<Literal>*", out_status as "Status*"] -> PjRtBuffer as "std::unique_ptr<PjRtBuffer>" {
+                auto client = *self;
+                auto device = client->devices()[0];
+                auto status = client->BufferFromHostLiteral(*literal->get(), device);
                 if (status.ok()) {
                     return std::unique_ptr(std::move(status.value()));
                 }else{

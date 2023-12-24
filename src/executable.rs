@@ -32,14 +32,15 @@ impl PjRtLoadedExecutable {
 
     pub fn execute_buffers(&self, buffers: BufferArgs) -> Result<Vec<PjRtBuffer>> {
         let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
+        let untuple_result = buffers.untuple_result;
         let buffers = buffers.buffers;
         let mut out = vec![];
         {
             let out_ptr = &mut out;
             unsafe {
-                cpp!([self as "const std::shared_ptr<PjRtLoadedExecutable>*", buffers as "std::unique_ptr<std::vector<PjRtBuffer*>>", out_status as "Status*", out_ptr as "void*"] {
+                cpp!([self as "const std::shared_ptr<PjRtLoadedExecutable>*", buffers as "std::unique_ptr<std::vector<PjRtBuffer*>>", out_status as "Status*", out_ptr as "void*", untuple_result as "bool"] {
                     ExecuteOptions options;
-                    options.untuple_result = true;
+                    options.untuple_result = untuple_result;
                     auto status = (*self)->Execute(absl::Span(buffers.get(), 1), options);
                     if (status.ok()) {
                         std::vector<std::vector<std::unique_ptr<PjRtBuffer>>> bufs = std::move(status).value();

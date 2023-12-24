@@ -132,6 +132,10 @@ impl XlaBuilder {
         T::constant_r0(self, val)
     }
 
+    pub fn constant_vector<T: NativeType>(&self, vals: &[T]) -> XlaOp {
+        T::constant_r1(self, vals)
+    }
+
     pub fn setup_alias(&self, param_num: u64, output_index: u64) -> Result<()> {
         let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
         unsafe {

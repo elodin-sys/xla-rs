@@ -57,6 +57,7 @@ impl PjRtBuffer {
 
 pub struct BufferArgs<'a> {
     phantom_data: PhantomData<&'a ()>,
+    pub(crate) untuple_result: bool,
     pub(crate) buffers: BufferArgsInner,
 }
 
@@ -70,6 +71,7 @@ impl<'a> Default for BufferArgs<'a> {
                     return vec;
                 })
             },
+            untuple_result: false,
         }
     }
 }
@@ -85,6 +87,11 @@ impl<'a> BufferArgs<'a> {
             })
         };
     }
+
+    pub fn untuple_result(mut self, untuple_result: bool) -> Self {
+        self.untuple_result = untuple_result;
+        self
+    }
 }
 
 impl<'a> FromIterator<&'a PjRtBuffer> for BufferArgs<'a> {
@@ -94,5 +101,11 @@ impl<'a> FromIterator<&'a PjRtBuffer> for BufferArgs<'a> {
             args.push(buf);
         }
         args
+    }
+}
+
+impl<'a, const N: usize> From<[&'a PjRtBuffer; N]> for BufferArgs<'a> {
+    fn from(value: [&'a PjRtBuffer; N]) -> Self {
+        value.into_iter().collect()
     }
 }

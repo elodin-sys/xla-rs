@@ -1,6 +1,6 @@
+use crate::{ArrayElement, ElementType, Error, PrimitiveType, Result};
 use cpp::{cpp, cpp_class};
-
-use crate::{ArrayElement, ElementType, PrimitiveType};
+use num_traits::FromPrimitive;
 cpp_class!(pub unsafe struct RawShape as "Shape");
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -139,6 +139,57 @@ impl Shape {
                         })
                     }
                 }
+            }
+        }
+    }
+}
+
+impl RawShape {
+    pub fn primitive_type(&self) -> Result<PrimitiveType> {
+        let ty = unsafe {
+            cpp!([self as "const Shape*"] -> i32 as "int32_t" {
+                return self->element_type();
+            })
+        };
+        FromPrimitive::from_i32(ty).ok_or_else(|| Error::UnexpectedElementType(ty))
+    }
+
+    pub fn shape(&self) -> Result<Shape> {
+        let ty = self.primitive_type()?;
+        match ty {
+            PrimitiveType::Tuple => {
+                let count = unsafe {
+                    cpp!([self as "const Shape*"] -> usize as "size_t" {
+                        return self->tuple_shapes_size();
+                    })
+                };
+                let shapes = (0..count)
+                    .map(|i| unsafe {
+                        cpp!([self as "const Shape*", i as "size_t"] -> RawShape as "Shape" {
+                            return self->tuple_shapes(i);
+                        })
+                    })
+                    .map(|s| s.shape())
+                    .collect::<Result<Vec<_>>>();
+                shapes.map(Shape::Tuple)
+            }
+
+            ty => {
+                let rank = unsafe {
+                    cpp!([self as "const Shape*"] -> usize as "size_t" {
+                        return self->dimensions_size();
+                    })
+                };
+
+                let dims = (0..rank)
+                    .map(|i| unsafe {
+                        cpp!([self as "const Shape*", i as "size_t"] -> i64 as "int64_t" {
+                            return self->dimensions(i);
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                let ty = ty.element_type()?;
+                Ok(Shape::Array(ArrayShape { ty, dims }))
             }
         }
     }

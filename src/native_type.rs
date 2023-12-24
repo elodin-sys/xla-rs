@@ -19,7 +19,7 @@ cpp! {{
 pub trait NativeType: Copy + Pod {
     fn constant_r0(builder: &XlaBuilder, value: Self) -> XlaOp;
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp;
-    fn create_r0(self) -> Literal;
+    fn literal(self) -> Literal;
     fn create_r1(slice: &[Self]) -> Literal;
 }
 
@@ -50,7 +50,7 @@ impl NativeType for f64 {
         }
     }
 
-    fn create_r0(self) -> Literal {
+    fn literal(self) -> Literal {
         unsafe {
             cpp!([self as "double"] -> Literal as "std::shared_ptr<Literal>" {
                 return std::make_shared<Literal>(LiteralUtil::CreateR0<double>(self));
@@ -96,7 +96,7 @@ impl NativeType for f32 {
         }
     }
 
-    fn create_r0(self) -> Literal {
+    fn literal(self) -> Literal {
         unsafe {
             cpp!([self as "float"] -> Literal as "std::shared_ptr<Literal>" {
                 return std::make_shared<Literal>(LiteralUtil::CreateR0<float>(self));
@@ -142,7 +142,7 @@ impl NativeType for u64 {
         }
     }
 
-    fn create_r0(self) -> Literal {
+    fn literal(self) -> Literal {
         unsafe {
             cpp!([self as "uint64_t"] -> Literal as "std::shared_ptr<Literal>" {
                 return std::make_shared<Literal>(LiteralUtil::CreateR0<uint64_t>(self));
@@ -188,7 +188,7 @@ impl NativeType for u32 {
         }
     }
 
-    fn create_r0(self) -> Literal {
+    fn literal(self) -> Literal {
         unsafe {
             cpp!([self as "uint32_t"] -> Literal as "std::shared_ptr<Literal>" {
                 return std::make_shared<Literal>(LiteralUtil::CreateR0<uint32_t>(self));
@@ -234,7 +234,7 @@ impl NativeType for u16 {
         }
     }
 
-    fn create_r0(self) -> Literal {
+    fn literal(self) -> Literal {
         unsafe {
             cpp!([self as "uint16_t"] -> Literal as "std::shared_ptr<Literal>" {
                 return std::make_shared<Literal>(LiteralUtil::CreateR0<uint16_t>(self));
@@ -280,7 +280,7 @@ impl NativeType for i64 {
         }
     }
 
-    fn create_r0(self) -> Literal {
+    fn literal(self) -> Literal {
         unsafe {
             cpp!([self as "int64_t"] -> Literal as "std::shared_ptr<Literal>" {
                 return std::make_shared<Literal>(LiteralUtil::CreateR0<int64_t>(self));
@@ -326,7 +326,7 @@ impl NativeType for i32 {
         }
     }
 
-    fn create_r0(self) -> Literal {
+    fn literal(self) -> Literal {
         unsafe {
             cpp!([self as "int32_t"] -> Literal as "std::shared_ptr<Literal>" {
                 return std::make_shared<Literal>(LiteralUtil::CreateR0<int32_t>(self));
@@ -372,7 +372,7 @@ impl NativeType for i16 {
         }
     }
 
-    fn create_r0(self) -> Literal {
+    fn literal(self) -> Literal {
         unsafe {
             cpp!([self as "int16_t"] -> Literal as "std::shared_ptr<Literal>" {
                 return std::make_shared<Literal>(LiteralUtil::CreateR0<int16_t>(self));
