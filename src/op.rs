@@ -1,9 +1,9 @@
 use cpp::{cpp, cpp_class};
 
 use super::ArrayShape;
-use super::{XlaBuilder, XlaComputation};
 use crate::Result;
 use crate::{PrimitiveType, Status};
+use crate::{XlaBuilder, XlaComputation};
 use std::marker::PhantomData;
 use std::ops::{Add, Div, Mul, Sub};
 use std::pin::Pin;

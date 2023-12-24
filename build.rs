@@ -47,19 +47,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .flag("-DLLVM_VERSION_STRING=")
         .flag(&format!("-isystem{}", xla_dir.join("include").display()))
         .build("src/lib.rs");
-    println!("cargo:rerun-if-changed=src/sys.rs");
-    println!("cargo:rerun-if-changed=src/sys/op.rs");
-    println!("cargo:rerun-if-changed=src/sys/shape.rs");
+    println!("cargo:rerun-if-changed=src/executable.rs");
+    println!("cargo:rerun-if-changed=src/literal.rs");
+    println!("cargo:rerun-if-changed=src/op.rs");
+    println!("cargo:rerun-if-changed=src/shape.rs");
     println!("cargo:rerun-if-changed=src/native_types.rs");
+    println!("cargo:rerun-if-changed=src/builder.rs");
+    println!("cargo:rerun-if-changed=src/error.rs");
+    println!("cargo:rerun-if-changed=src/client.rs");
+    println!("cargo:rerun-if-changed=src/buffer.rs");
+    println!("cargo:rerun-if-changed=src/computation.rs");
 
     let jax_metal_dir =
         env_var_rerun("JAX_METAL_DIR").map_or_else(|| out_dir.join("jax_metal"), PathBuf::from);
     if !jax_metal_dir.exists() && cfg!(target_os = "macos") {
         download_jax_metal(&jax_metal_dir).await?;
     }
-
-    println!("cargo:rerun-if-changed=xla_rs/xla_rs.h");
-    println!("cargo:rerun-if-changed=xla_rs/xla_rs.cc");
 
     // Exit early on docs.rs as the C++ library would not be available.
     if std::env::var("DOCS_RS").is_ok() {

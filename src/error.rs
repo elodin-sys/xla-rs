@@ -1,3 +1,11 @@
+use cpp::{cpp, cpp_class};
+use cxx::{CxxString, UniquePtr};
+
+cpp! {{
+    #include "xla/statusor.h"
+    using namespace xla;
+}}
+
 /// Main library error type.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -76,3 +84,42 @@ pub enum Error {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+cpp_class!(pub unsafe struct Status as "Status");
+
+impl Status {
+    pub fn ok() -> Self {
+        unsafe {
+            cpp!([] -> Status as "Status" {
+                return Status();
+            })
+        }
+    }
+
+    pub fn is_ok(&self) -> bool {
+        unsafe {
+            cpp!([self as "const Status*"] -> bool as "bool" {
+                return self->ok();
+            })
+        }
+    }
+
+    pub fn to_result(&self) -> Result<()> {
+        if self.is_ok() {
+            Ok(())
+        } else {
+            let msg = unsafe {
+                cpp!([self as "Status*"] -> UniquePtr<CxxString> as "std::unique_ptr<std::string>" {
+                    return make_unique<std::string>(std::string(self->message()));
+                })
+            };
+            let msg = msg
+                .as_ref()
+                .and_then(|msg| msg.to_str().ok())
+                .map(|msg| msg.to_string())
+                .unwrap_or_default();
+            let backtrace = std::backtrace::Backtrace::capture().to_string();
+            Err(Error::XlaError { msg, backtrace })
+        }
+    }
+}

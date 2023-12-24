@@ -1,6 +1,5 @@
 use cpp::{cpp, cpp_class};
 
-
 use crate::{ArrayElement, ElementType, PrimitiveType};
 cpp_class!(pub unsafe struct RawShape as "Shape");
 

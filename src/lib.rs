@@ -24,7 +24,7 @@
 //! let sum = (cst20 + cst22)?;
 //!
 //! // Create a computation from the final node.
-//! let sum = sum.build()?;
+//! let sum= sum.build()?;
 //!
 //! // Compile this computation for the target device and then execute it.
 //! let result = client.compile(&sum)?;
@@ -34,14 +34,31 @@
 //! let result = result[0][0].to_literal_sync()?.to_vec::<f32>()?;
 //! ```
 
+mod builder;
+mod client;
+mod computation;
 mod element_type;
 mod error;
+mod hlo_module;
 mod native_type;
-pub mod sys;
+mod op;
+mod shape;
+mod buffer;
+mod literal;
+mod executable;
+
+pub use buffer::*;
+pub use builder::*;
+pub use client::*;
+pub use computation::*;
 pub use element_type::*;
-pub use error::{Error, Result};
+pub use error::{Error, Result, Status};
+pub use hlo_module::*;
 pub use native_type::*;
-pub use sys::*;
+pub use op::*;
+pub use shape::*;
+pub use literal::*;
+pub use executable::*;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TfLogLevel {
@@ -65,3 +82,6 @@ impl TfLogLevel {
 pub fn set_tf_min_log_level(log_level: TfLogLevel) {
     std::env::set_var("TF_CPP_MIN_LOG_LEVEL", log_level.as_env_variable_str())
 }
+
+#[cfg(test)]
+mod tests;
