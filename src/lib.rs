@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 //! Rust bindings for XLA (Accelerated Linear Algebra).
 //!
 //! [XLA](https://www.tensorflow.org/xla) is a compiler library for Machine Learning. It can be
@@ -23,7 +24,7 @@
 //! let sum = (cst20 + cst22)?;
 //!
 //! // Create a computation from the final node.
-//! let sum = sum.build()?;
+//! let sum= sum.build()?;
 //!
 //! // Compile this computation for the target device and then execute it.
 //! let result = client.compile(&sum)?;
@@ -33,13 +34,31 @@
 //! let result = result[0][0].to_literal_sync()?.to_vec::<f32>()?;
 //! ```
 
-mod c_lib;
+mod buffer;
+mod builder;
+mod client;
+mod computation;
+mod element_type;
 mod error;
-mod npy;
-mod wrappers;
-pub use error::{Error, Result};
-pub use npy::FromRawBytes;
-pub use wrappers::*;
+mod executable;
+mod hlo_module;
+mod literal;
+mod native_type;
+mod op;
+mod shape;
+
+pub use buffer::*;
+pub use builder::*;
+pub use client::*;
+pub use computation::*;
+pub use element_type::*;
+pub use error::{Error, Result, Status};
+pub use executable::*;
+pub use hlo_module::*;
+pub use literal::*;
+pub use native_type::*;
+pub use op::*;
+pub use shape::*;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TfLogLevel {
@@ -63,3 +82,6 @@ impl TfLogLevel {
 pub fn set_tf_min_log_level(log_level: TfLogLevel) {
     std::env::set_var("TF_CPP_MIN_LOG_LEVEL", log_level.as_env_variable_str())
 }
+
+#[cfg(test)]
+mod tests;
