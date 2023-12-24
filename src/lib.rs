@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 //! Rust bindings for XLA (Accelerated Linear Algebra).
 //!
 //! [XLA](https://www.tensorflow.org/xla) is a compiler library for Machine Learning. It can be
