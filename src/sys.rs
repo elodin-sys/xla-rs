@@ -5,9 +5,11 @@ use bytemuck::AnyBitPattern;
 use cpp::{cpp, cpp_class};
 use cxx::{let_cxx_string, CxxString, UniquePtr};
 
+mod hlo_module;
 mod op;
 mod shape;
 
+pub use hlo_module::*;
 use num_traits::FromPrimitive;
 pub use op::*;
 pub use shape::*;
@@ -289,6 +291,48 @@ impl PjRtClient {
         Ok(buffer)
     }
 
+    pub fn copy_raw_host_buffer(
+        &self,
+        ty: super::ElementType,
+        buf: &[u8],
+        dims: &[usize],
+    ) -> Result<PjRtBuffer> {
+        let element_count: usize = dims.iter().product();
+        let element_size_in_bytes = ty.element_size_in_bytes();
+        if element_count * element_size_in_bytes != buf.len() {
+            Err(Error::WrongElementCount { dims: dims.to_vec(), element_count })?
+        }
+        let buf_ptr = buf.as_ptr();
+        let dims_ptr = dims.as_ptr();
+        let dims_len = dims.len();
+        let prim_type = ty.primitive_type() as i32;
+        let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
+        let buffer = unsafe {
+            cpp!([self as "std::shared_ptr<PjRtClient>*", buf_ptr as "const uint8_t*", out_status as "Status*", dims_ptr as "const int64_t*", dims_len as "size_t", prim_type as "int32_t"] -> PjRtBuffer as "std::unique_ptr<PjRtBuffer>" {
+                auto client = *self;
+                auto device = client->devices()[0];
+                auto status = client->BufferFromHostBuffer(
+                    buf_ptr,
+                    (PrimitiveType)prim_type,
+                    absl::Span(dims_ptr, dims_len), {},
+                    PjRtClient::HostBufferSemantics::kImmutableOnlyDuringCall, []() {}, device
+                );
+                if (status.ok()) {
+                    return std::unique_ptr(std::move(status.value()));
+                }else{
+                    *out_status = Status(status.status());
+                    return std::unique_ptr<PjRtBuffer>();
+                }
+            })
+        };
+        out_status.to_result()?;
+        if buffer.is_null() {
+            let backtrace = std::backtrace::Backtrace::capture().to_string();
+            return Err(Error::XlaError { msg: "Unexpected null pointer".to_string(), backtrace });
+        }
+        Ok(buffer)
+    }
+
     pub fn compile(&self, comp: &XlaComputation) -> Result<PjRtLoadedExecutable> {
         let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
         let exec = unsafe {
@@ -494,6 +538,16 @@ impl<'a> BufferArgs<'a> {
                 (*inner)->push_back(buf_ptr);
             })
         };
+    }
+}
+
+impl<'a> FromIterator<&'a PjRtBuffer> for BufferArgs<'a> {
+    fn from_iter<T: IntoIterator<Item = &'a PjRtBuffer>>(iter: T) -> Self {
+        let mut args = BufferArgs::default();
+        for buf in iter {
+            args.push(buf);
+        }
+        args
     }
 }
 
