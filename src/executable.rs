@@ -1,11 +1,8 @@
-use crate::{
-    BufferArgs, PjRtBuffer, Result, Status,
-};
+use crate::{BufferArgs, PjRtBuffer, Result, Status};
 
 use cpp::{cpp, cpp_class};
 
-
-use std::{pin::Pin};
+use std::pin::Pin;
 
 cpp! {{
     #include "xla/client/xla_builder.h"

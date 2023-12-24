@@ -48,7 +48,10 @@ impl XlaBuilder {
                 return XlaOp(ConcatInDim(self->get(), absl::Span(others_ptr, others_len), dim));
             })
         };
-        XlaOp { raw, builder: self.clone() }
+        XlaOp {
+            raw,
+            builder: self.clone(),
+        }
     }
 
     pub fn tuple(&self, elems: &[XlaOpRef<'_>]) -> XlaOp {
@@ -59,7 +62,10 @@ impl XlaBuilder {
                 return XlaOp(Tuple(self->get(), absl::Span(elems_ptr, elems_len)));
             })
         };
-        XlaOp { raw, builder: self.clone() }
+        XlaOp {
+            raw,
+            builder: self.clone(),
+        }
     }
 
     pub fn map(&self, args: &[XlaOpRef<'_>], comp: &XlaComputation, dims: &[i64]) -> XlaOp {
@@ -72,7 +78,10 @@ impl XlaBuilder {
                 return XlaOp(Map(self->get(), absl::Span(args_ptr, args_len), *comp, absl::Span(dims_ptr, dims_len)));
             })
         };
-        XlaOp { raw, builder: self.clone() }
+        XlaOp {
+            raw,
+            builder: self.clone(),
+        }
     }
 
     pub fn parameter(
@@ -98,7 +107,10 @@ impl XlaBuilder {
             })
         };
         out_status.to_result()?;
-        Ok(XlaOp { raw: op, builder: self.clone() })
+        Ok(XlaOp {
+            raw: op,
+            builder: self.clone(),
+        })
     }
 
     /// Create a node with a constant value defined by the specified literal.
@@ -110,7 +122,10 @@ impl XlaBuilder {
             })
         };
         out_status.to_result()?;
-        Ok(XlaOp { raw: op, builder: self.clone() })
+        Ok(XlaOp {
+            raw: op,
+            builder: self.clone(),
+        })
     }
 
     pub fn constant<T: NativeType>(&self, val: T) -> XlaOp {

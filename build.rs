@@ -77,7 +77,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("cargo:rustc-link-arg=-Wl,-lstdc++");
     }
 
-    println!("cargo:rustc-link-search=native={}", xla_dir.join("lib").display());
+    println!(
+        "cargo:rustc-link-search=native={}",
+        xla_dir.join("lib").display()
+    );
     println!("cargo:rustc-link-lib=static=xla_extension");
     if os == OS::MacOS {
         println!("cargo:rustc-link-lib=framework=Foundation");

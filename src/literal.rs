@@ -1,11 +1,9 @@
-use crate::{
-    ArrayElement, Error, PrimitiveType, Result, Status,
-};
+use crate::{ArrayElement, Error, PrimitiveType, Result, Status};
 use bytemuck::AnyBitPattern;
 use cpp::{cpp, cpp_class};
 
 use num_traits::FromPrimitive;
-use std::{pin::Pin};
+use std::pin::Pin;
 
 cpp! {{
     #include "xla/client/xla_builder.h"
@@ -60,7 +58,10 @@ impl Literal {
     pub fn typed_buf<T: ArrayElement + AnyBitPattern>(&self) -> Result<&[T]> {
         let ty = self.primitive_type()?.element_type()?;
         if ty != T::TY {
-            Err(Error::ElementTypeMismatch { on_device: ty, on_host: T::TY })?
+            Err(Error::ElementTypeMismatch {
+                on_device: ty,
+                on_host: T::TY,
+            })?
         }
         bytemuck::try_cast_slice(self.raw_buf()).map_err(Error::PodCastError)
     }

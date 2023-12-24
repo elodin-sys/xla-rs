@@ -30,7 +30,10 @@ impl NativeType for f64 {
                 return XlaOp(ConstantR0<double>(builder->get(), value));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
@@ -41,7 +44,10 @@ impl NativeType for f64 {
                 return XlaOp(ConstantR1<double>(builder->get(), absl::Span<const double>(value_ptr, value_len)));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn create_r0(self) -> Literal {
@@ -70,7 +76,10 @@ impl NativeType for f32 {
                 return XlaOp(ConstantR0<float>(builder->get(), value));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
@@ -81,7 +90,10 @@ impl NativeType for f32 {
                 return XlaOp(ConstantR1<float>(builder->get(), absl::Span<const float>(value_ptr, value_len)));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn create_r0(self) -> Literal {
@@ -110,7 +122,10 @@ impl NativeType for u64 {
                 return XlaOp(ConstantR0<uint64_t>(builder->get(), value));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
@@ -121,7 +136,10 @@ impl NativeType for u64 {
                 return XlaOp(ConstantR1<uint64_t>(builder->get(), absl::Span<const uint64_t>(value_ptr, value_len)));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn create_r0(self) -> Literal {
@@ -150,7 +168,10 @@ impl NativeType for u32 {
                 return XlaOp(ConstantR0<uint32_t>(builder->get(), value));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
@@ -161,7 +182,10 @@ impl NativeType for u32 {
                 return XlaOp(ConstantR1<uint32_t>(builder->get(), absl::Span<const uint32_t>(value_ptr, value_len)));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn create_r0(self) -> Literal {
@@ -190,7 +214,10 @@ impl NativeType for u16 {
                 return XlaOp(ConstantR0<uint16_t>(builder->get(), value));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
@@ -201,7 +228,10 @@ impl NativeType for u16 {
                 return XlaOp(ConstantR1<uint16_t>(builder->get(), absl::Span<const uint16_t>(value_ptr, value_len)));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn create_r0(self) -> Literal {
@@ -230,7 +260,10 @@ impl NativeType for i64 {
                 return XlaOp(ConstantR0<int64_t>(builder->get(), value));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
@@ -241,7 +274,10 @@ impl NativeType for i64 {
                 return XlaOp(ConstantR1<int64_t>(builder->get(), absl::Span<const int64_t>(value_ptr, value_len)));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn create_r0(self) -> Literal {
@@ -270,7 +306,10 @@ impl NativeType for i32 {
                 return XlaOp(ConstantR0<int32_t>(builder->get(), value));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
@@ -281,7 +320,10 @@ impl NativeType for i32 {
                 return XlaOp(ConstantR1<int32_t>(builder->get(), absl::Span<const int32_t>(value_ptr, value_len)));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn create_r0(self) -> Literal {
@@ -310,7 +352,10 @@ impl NativeType for i16 {
                 return XlaOp(ConstantR0<int16_t>(builder->get(), value));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn constant_r1(builder: &XlaBuilder, value: &[Self]) -> XlaOp {
@@ -321,7 +366,10 @@ impl NativeType for i16 {
                 return XlaOp(ConstantR1<int16_t>(builder->get(), absl::Span<const int16_t>(value_ptr, value_len)));
             })
         };
-        XlaOp { raw, builder: builder.clone() }
+        XlaOp {
+            raw,
+            builder: builder.clone(),
+        }
     }
 
     fn create_r0(self) -> Literal {

@@ -15,10 +15,18 @@ fn test_compile() {
     let client = PjRtClient::cpu().expect("client create failed");
     let builder = XlaBuilder::new("test");
     let a = builder
-        .parameter(0, &ArrayShape::new_with_type(crate::ElementType::F32, vec![]), "a")
+        .parameter(
+            0,
+            &ArrayShape::new_with_type(crate::ElementType::F32, vec![]),
+            "a",
+        )
         .unwrap();
     let b = builder
-        .parameter(1, &ArrayShape::new_with_type(crate::ElementType::F32, vec![]), "b")
+        .parameter(
+            1,
+            &ArrayShape::new_with_type(crate::ElementType::F32, vec![]),
+            "b",
+        )
         .unwrap();
     let add = a.add(&b);
     let comp = builder.build(&add).unwrap();
@@ -30,10 +38,18 @@ fn test_exec() {
     let client = PjRtClient::cpu().expect("client create failed");
     let builder = XlaBuilder::new("test");
     let a = builder
-        .parameter(0, &ArrayShape::new_with_type(crate::ElementType::F32, vec![]), "a")
+        .parameter(
+            0,
+            &ArrayShape::new_with_type(crate::ElementType::F32, vec![]),
+            "a",
+        )
         .unwrap();
     let b = builder
-        .parameter(1, &ArrayShape::new_with_type(crate::ElementType::F32, vec![]), "b")
+        .parameter(
+            1,
+            &ArrayShape::new_with_type(crate::ElementType::F32, vec![]),
+            "b",
+        )
         .unwrap();
     let add = a.add(&b);
     let comp = builder.build(&add).unwrap();

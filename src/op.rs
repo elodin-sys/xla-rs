@@ -32,7 +32,10 @@ pub struct XlaOpRef<'a> {
 
 impl XlaOp {
     pub fn as_ref(&self) -> XlaOpRef<'_> {
-        XlaOpRef { _raw: self.raw, _phantom: PhantomData }
+        XlaOpRef {
+            _raw: self.raw,
+            _phantom: PhantomData,
+        }
     }
 
     pub fn build(&self) -> Result<XlaComputation> {
@@ -55,7 +58,10 @@ impl XlaOp {
     }
 
     fn wrap(&self, raw: XlaOpRaw) -> Self {
-        Self { raw, builder: self.builder.clone() }
+        Self {
+            raw,
+            builder: self.builder.clone(),
+        }
     }
 
     pub fn add(&self, rhs: &Self) -> Self {

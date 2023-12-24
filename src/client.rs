@@ -34,7 +34,10 @@ impl PjRtClient {
         out_status.to_result()?;
         if client.is_null() {
             let backtrace = std::backtrace::Backtrace::capture().to_string();
-            return Err(Error::XlaError { msg: "Unexpected null pointer".to_string(), backtrace });
+            return Err(Error::XlaError {
+                msg: "Unexpected null pointer".to_string(),
+                backtrace,
+            });
         }
         Ok(client)
     }
@@ -57,7 +60,10 @@ impl PjRtClient {
         out_status.to_result()?;
         if client.is_null() {
             let backtrace = std::backtrace::Backtrace::capture().to_string();
-            return Err(Error::XlaError { msg: "Unexpected null pointer".to_string(), backtrace });
+            return Err(Error::XlaError {
+                msg: "Unexpected null pointer".to_string(),
+                backtrace,
+            });
         }
         Ok(client)
     }
@@ -69,7 +75,10 @@ impl PjRtClient {
     ) -> Result<PjRtBuffer> {
         let element_count: usize = dims.iter().product();
         if element_count != buf.len() {
-            return Err(Error::WrongElementCount { dims: dims.to_vec(), element_count });
+            return Err(Error::WrongElementCount {
+                dims: dims.to_vec(),
+                element_count,
+            });
         }
         let buf_ptr = buf.as_ptr();
         let dims_ptr = dims.as_ptr();
@@ -97,7 +106,10 @@ impl PjRtClient {
         out_status.to_result()?;
         if buffer.is_null() {
             let backtrace = std::backtrace::Backtrace::capture().to_string();
-            return Err(Error::XlaError { msg: "Unexpected null pointer".to_string(), backtrace });
+            return Err(Error::XlaError {
+                msg: "Unexpected null pointer".to_string(),
+                backtrace,
+            });
         }
         Ok(buffer)
     }
@@ -111,7 +123,10 @@ impl PjRtClient {
         let element_count: usize = dims.iter().product();
         let element_size_in_bytes = ty.element_size_in_bytes();
         if element_count * element_size_in_bytes != buf.len() {
-            Err(Error::WrongElementCount { dims: dims.to_vec(), element_count })?
+            Err(Error::WrongElementCount {
+                dims: dims.to_vec(),
+                element_count,
+            })?
         }
         let buf_ptr = buf.as_ptr();
         let dims_ptr = dims.as_ptr();
@@ -139,7 +154,10 @@ impl PjRtClient {
         out_status.to_result()?;
         if buffer.is_null() {
             let backtrace = std::backtrace::Backtrace::capture().to_string();
-            return Err(Error::XlaError { msg: "Unexpected null pointer".to_string(), backtrace });
+            return Err(Error::XlaError {
+                msg: "Unexpected null pointer".to_string(),
+                backtrace,
+            });
         }
         Ok(buffer)
     }
@@ -162,7 +180,10 @@ impl PjRtClient {
         out_status.to_result()?;
         if exec.is_null() {
             let backtrace = std::backtrace::Backtrace::capture().to_string();
-            return Err(Error::XlaError { msg: "Unexpected null pointer".to_string(), backtrace });
+            return Err(Error::XlaError {
+                msg: "Unexpected null pointer".to_string(),
+                backtrace,
+            });
         }
         Ok(exec)
     }

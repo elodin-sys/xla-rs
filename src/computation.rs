@@ -14,6 +14,9 @@ impl XlaComputation {
                 return XlaOp(While(*self, *body, *init_value));
             })
         };
-        XlaOp { raw, builder: init_value.builder.clone() }
+        XlaOp {
+            raw,
+            builder: init_value.builder.clone(),
+        }
     }
 }

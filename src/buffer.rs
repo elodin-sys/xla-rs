@@ -1,7 +1,6 @@
-use crate::{Result, Status, Literal};
+use crate::{Literal, Result, Status};
 
 use cpp::{cpp, cpp_class};
-
 
 use std::{marker::PhantomData, pin::Pin};
 

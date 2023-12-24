@@ -34,18 +34,18 @@
 //! let result = result[0][0].to_literal_sync()?.to_vec::<f32>()?;
 //! ```
 
+mod buffer;
 mod builder;
 mod client;
 mod computation;
 mod element_type;
 mod error;
+mod executable;
 mod hlo_module;
+mod literal;
 mod native_type;
 mod op;
 mod shape;
-mod buffer;
-mod literal;
-mod executable;
 
 pub use buffer::*;
 pub use builder::*;
@@ -53,12 +53,12 @@ pub use client::*;
 pub use computation::*;
 pub use element_type::*;
 pub use error::{Error, Result, Status};
+pub use executable::*;
 pub use hlo_module::*;
+pub use literal::*;
 pub use native_type::*;
 pub use op::*;
 pub use shape::*;
-pub use literal::*;
-pub use executable::*;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TfLogLevel {
