@@ -38,12 +38,12 @@ fn test_exec() {
     let add = a.add(&b);
     let comp = builder.build(&add).unwrap();
     let exec = client.compile(&comp).unwrap();
-    let mut args = BufferArgs::default();
+    let mut args = BufferArgsRef::default();
     let a = client.copy_host_buffer(&[1.0f32], &[]).unwrap();
     let b = client.copy_host_buffer(&[2.0f32], &[]).unwrap();
     args.push(&a);
     args.push(&b);
-    let mut res = exec.execute_buffers(args).unwrap();
+    let mut res = exec.execute_buffers(&args).unwrap();
     let out = res.pop().unwrap();
     let lit = out.to_literal_sync().unwrap();
     assert_eq!(lit.typed_buf::<f32>().unwrap(), &[3.0f32]);
@@ -58,7 +58,7 @@ fn add_op() -> Result<()> {
     let sum = cst42 + cst43;
     let computation = sum.build()?;
     let result = client.compile(&computation)?;
-    let result = result.execute_buffers(BufferArgs::default())?;
+    let result = result.execute_buffers(&BufferArgsRef::default())?;
     let result = result[0].to_literal_sync()?;
     assert_eq!(result.element_count(), 2);
     assert_eq!(
@@ -81,7 +81,7 @@ fn tuple_op() -> Result<()> {
     let y = crate::Literal::vector(&[4.2f32, 1.337f32]);
     let x = client.copy_literal(&x)?;
     let y = client.copy_literal(&y)?;
-    let result = tuple.execute_buffers([&x, &y].into())?;
+    let result = tuple.execute_buffers(BufferArgsRef::from([&x, &y]))?;
     let result = result[0].to_literal_sync()?;
     assert_eq!(result.shape()?.tuple_size(), Some(2));
     let mut result = result;

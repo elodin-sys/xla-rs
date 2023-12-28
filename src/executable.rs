@@ -30,10 +30,10 @@ impl PjRtLoadedExecutable {
         }
     }
 
-    pub fn execute_buffers(&self, buffers: BufferArgs) -> Result<Vec<PjRtBuffer>> {
+    pub fn execute_buffers(&self, buffers: impl BufferArgs) -> Result<Vec<PjRtBuffer>> {
         let out_status: Pin<&mut Status> = std::pin::pin!(Status::ok());
-        let untuple_result = buffers.untuple_result;
-        let buffers = buffers.buffers;
+        let untuple_result = buffers.untuple_result();
+        let buffers = buffers.get();
         let mut out = vec![];
         {
             let out_ptr = &mut out;
