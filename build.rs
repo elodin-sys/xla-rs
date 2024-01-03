@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-changed=src/literal.rs");
     println!("cargo:rerun-if-changed=src/op.rs");
     println!("cargo:rerun-if-changed=src/shape.rs");
-    println!("cargo:rerun-if-changed=src/native_types.rs");
+    println!("cargo:rerun-if-changed=src/native_type.rs");
     println!("cargo:rerun-if-changed=src/builder.rs");
     println!("cargo:rerun-if-changed=src/error.rs");
     println!("cargo:rerun-if-changed=src/client.rs");

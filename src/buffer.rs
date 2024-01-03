@@ -2,7 +2,7 @@ use crate::{Literal, Result, Status};
 
 use cpp::{cpp, cpp_class};
 
-use std::{marker::PhantomData, pin::Pin};
+use std::{marker::PhantomData, mem::ManuallyDrop, pin::Pin};
 
 cpp! {{
     #include "xla/client/xla_builder.h"
@@ -15,6 +15,7 @@ cpp! {{
 
 cpp_class!(pub unsafe struct PjRtBuffer as "std::unique_ptr<PjRtBuffer>");
 cpp_class!(pub unsafe struct BufferArgsInner as "std::unique_ptr<std::vector<PjRtBuffer*>>");
+cpp_class!(pub unsafe struct BufferArgsInnerRaw as "std::vector<PjRtBuffer*>");
 
 impl PjRtBuffer {
     pub(crate) fn is_null(&self) -> bool {
@@ -55,13 +56,13 @@ impl PjRtBuffer {
     }
 }
 
-pub struct BufferArgs<'a> {
+pub struct BufferArgsRef<'a> {
     phantom_data: PhantomData<&'a ()>,
     pub(crate) untuple_result: bool,
     pub(crate) buffers: BufferArgsInner,
 }
 
-impl<'a> Default for BufferArgs<'a> {
+impl<'a> Default for BufferArgsRef<'a> {
     fn default() -> Self {
         Self {
             phantom_data: Default::default(),
@@ -76,7 +77,7 @@ impl<'a> Default for BufferArgs<'a> {
     }
 }
 
-impl<'a> BufferArgs<'a> {
+impl<'a> BufferArgsRef<'a> {
     pub fn push(&mut self, buf: &'a PjRtBuffer) {
         let inner = &mut self.buffers;
         let buf = buf as *const PjRtBuffer;
@@ -94,9 +95,9 @@ impl<'a> BufferArgs<'a> {
     }
 }
 
-impl<'a> FromIterator<&'a PjRtBuffer> for BufferArgs<'a> {
+impl<'a> FromIterator<&'a PjRtBuffer> for BufferArgsRef<'a> {
     fn from_iter<T: IntoIterator<Item = &'a PjRtBuffer>>(iter: T) -> Self {
-        let mut args = BufferArgs::default();
+        let mut args = BufferArgsRef::default();
         for buf in iter {
             args.push(buf);
         }
@@ -104,8 +105,109 @@ impl<'a> FromIterator<&'a PjRtBuffer> for BufferArgs<'a> {
     }
 }
 
-impl<'a, const N: usize> From<[&'a PjRtBuffer; N]> for BufferArgs<'a> {
+impl<'a, const N: usize> From<[&'a PjRtBuffer; N]> for BufferArgsRef<'a> {
     fn from(value: [&'a PjRtBuffer; N]) -> Self {
         value.into_iter().collect()
+    }
+}
+
+pub trait BufferArgs {
+    fn get(&self) -> &'_ BufferArgsInnerRaw;
+    fn untuple_result(&self) -> bool;
+}
+
+impl BufferArgs for BufferArgsRef<'_> {
+    fn get(&self) -> &'_ BufferArgsInnerRaw {
+        let inner = &self.buffers;
+        unsafe {
+            let ptr = cpp!([inner as "std::unique_ptr<std::vector<PjRtBuffer*>>*"] -> *const BufferArgsInnerRaw as "std::vector<PjRtBuffer*>*" {
+                return inner->get();
+            });
+            &*ptr
+        }
+    }
+
+    fn untuple_result(&self) -> bool {
+        self.untuple_result
+    }
+}
+
+pub struct BufferArgsOwned {
+    pub(crate) untuple_result: bool,
+    pub(crate) buffers: BufferArgsInner,
+}
+
+impl BufferArgsOwned {
+    pub fn push(&mut self, buf: PjRtBuffer) {
+        let inner = &mut self.buffers;
+        let mut buf = ManuallyDrop::new(buf);
+        unsafe {
+            cpp!([inner as "std::unique_ptr<std::vector<PjRtBuffer*>>*", mut buf as "std::unique_ptr<PjRtBuffer>"] {
+                (*inner)->push_back(buf.release());
+            })
+        };
+    }
+}
+
+impl BufferArgs for BufferArgsOwned {
+    fn get(&self) -> &'_ BufferArgsInnerRaw {
+        let inner = &self.buffers;
+        unsafe {
+            let ptr = cpp!([inner as "std::unique_ptr<std::vector<PjRtBuffer*>>*"] -> *const BufferArgsInnerRaw as "std::vector<PjRtBuffer*>*" {
+                return inner->get();
+            });
+            &*ptr
+        }
+    }
+
+    fn untuple_result(&self) -> bool {
+        self.untuple_result
+    }
+}
+
+impl<'a> Default for BufferArgsOwned {
+    fn default() -> Self {
+        Self {
+            buffers: unsafe {
+                cpp!([] -> BufferArgsInner as "std::unique_ptr<std::vector<PjRtBuffer*>>" {
+                    std::unique_ptr<std::vector<PjRtBuffer*>> vec (new std::vector<PjRtBuffer*> {});
+                    return vec;
+                })
+            },
+            untuple_result: false,
+        }
+    }
+}
+
+impl Drop for BufferArgsOwned {
+    fn drop(&mut self) {
+        let inner = &mut self.buffers;
+        unsafe {
+            cpp!([inner as "std::unique_ptr<std::vector<PjRtBuffer*>>*"] {
+                for(auto ptr : (*inner->get())) {
+                    delete ptr;
+                }
+            })
+        }
+    }
+}
+
+impl FromIterator<PjRtBuffer> for BufferArgsOwned {
+    fn from_iter<T: IntoIterator<Item = PjRtBuffer>>(iter: T) -> Self {
+        let mut args = BufferArgsOwned::default();
+        for buf in iter {
+            args.push(buf);
+        }
+        args
+    }
+}
+
+impl<A: BufferArgs> BufferArgs for &'_ A {
+    fn get(&self) -> &'_ BufferArgsInnerRaw {
+        A::get(*self)
+    }
+
+    fn untuple_result(&self) -> bool {
+        A::untuple_result(*self)
     }
 }
