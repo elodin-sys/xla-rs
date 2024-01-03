@@ -16,7 +16,9 @@ cpp! {{
     #include "xla/literal_util.h"
     using namespace xla;
 }}
+
 cpp_class!(pub unsafe struct XlaOpRaw as "XlaOp");
+cpp_class!(pub unsafe struct DotDimensionNumbers as "DotDimensionNumbers");
 
 #[derive(Clone)]
 pub struct XlaOp {
@@ -196,6 +198,20 @@ impl XlaOp {
             cpp!([op as "const XlaOp*", rhs as "const XlaOp*"] -> XlaOpRaw as "XlaOp" {
                 try {
                     return XlaOp(Dot(*op, *rhs));
+                }catch(std::exception e) {
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
+                }
+            })
+        };
+        self.wrap(raw)
+    }
+
+    pub fn dot_general(&self, rhs: &Self, dims: DotDimensionNumbers) -> Self {
+        let op = &self.raw;
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", rhs as "const XlaOp*", dims as "DotDimensionNumbers"] -> XlaOpRaw as "XlaOp" {
+                try {
+                    return XlaOp(DotGeneral(*op, *rhs, dims));
                 }catch(std::exception e) {
                     return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
                 }
@@ -895,6 +911,24 @@ impl XlaOp {
         self.wrap(raw)
     }
 
+    pub fn dynamic_slice(&self, start_indices: &[XlaOpRef<'_>], size_indicies: &[i64]) -> Self {
+        let op = &self.raw;
+        let start_indices_ptr = start_indices.as_ptr();
+        let start_indices_len = start_indices.len();
+        let size_indicies_ptr = size_indicies.as_ptr();
+        let size_indicies_len = size_indicies.len();
+        let raw = unsafe {
+            cpp!([op as "const XlaOp*", start_indices_ptr as "const XlaOp*", start_indices_len as "size_t", size_indicies_ptr as "const int64_t*", size_indicies_len as "size_t"] -> XlaOpRaw as "XlaOp" {
+                try {
+                    return XlaOp(DynamicSlice(*op, absl::Span(start_indices_ptr, start_indices_len), absl::Span(size_indicies_ptr, size_indicies_len)));
+                }catch(std::exception e) {
+                    return XlaOp(op->builder()->ReportError(tsl::errors::Internal(e.what())));
+                }
+            })
+        };
+        self.wrap(raw)
+    }
+
     pub fn get_tuple_element(&self, index: i64) -> Self {
         let op = &self.raw;
         let raw = unsafe {
@@ -1037,3 +1071,45 @@ bin_op_impl!(Add, add);
 bin_op_impl!(Sub, sub);
 bin_op_impl!(Mul, mul);
 bin_op_impl!(Div, div);
+
+impl DotDimensionNumbers {
+    pub fn new() -> DotDimensionNumbers {
+        unsafe {
+            cpp!([] -> DotDimensionNumbers as "DotDimensionNumbers" {
+                return DotDimensionNumbers();
+            })
+        }
+    }
+
+    pub fn add_lhs_contracting_dimensions(&mut self, dim: i64) {
+        unsafe {
+            cpp!([self as "DotDimensionNumbers*", dim as "int64_t"] {
+                self->add_lhs_contracting_dimensions(dim);
+            })
+        }
+    }
+
+    pub fn add_rhs_contracting_dimensions(&mut self, dim: i64) {
+        unsafe {
+            cpp!([self as "DotDimensionNumbers*", dim as "int64_t"] {
+                self->add_rhs_contracting_dimensions(dim);
+            })
+        }
+    }
+
+    pub fn add_lhs_batch_dimensions(&mut self, dim: i64) {
+        unsafe {
+            cpp!([self as "DotDimensionNumbers*", dim as "int64_t"] {
+                self->add_lhs_batch_dimensions(dim);
+            })
+        }
+    }
+
+    pub fn add_rhs_batch_dimensions(&mut self, dim: i64) {
+        unsafe {
+            cpp!([self as "DotDimensionNumbers*", dim as "int64_t"] {
+                self->add_rhs_batch_dimensions(dim);
+            })
+        }
+    }
+}
