@@ -26,11 +26,11 @@ impl HloModuleProto {
         let binary_len = binary.len();
         let status = unsafe {
             cpp!([binary_ptr as "char*", binary_len as "size_t", out_ptr as "HloModuleProto*"] -> Status as "Status" {
-                auto stream = std::strstream(binary_ptr, binary_len);
+                std::string data(binary_ptr, binary_len);
                 HloSnapshot proto;
-                if (!proto.ParseFromIstream(&stream) &&
-                        !proto.mutable_hlo()->ParseFromIstream(&stream) &&
-                        !proto.mutable_hlo()->mutable_hlo_module()->ParseFromIstream(&stream)) {
+                if (!proto.ParseFromString(data) &&
+                        !proto.mutable_hlo()->ParseFromString(data) &&
+                        !proto.mutable_hlo()->mutable_hlo_module()->ParseFromString(data)) {
                     return Status(
                         InvalidArgument("Failed to parse input as HLO protobuf binary"));
                 }
